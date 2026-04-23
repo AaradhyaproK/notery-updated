@@ -95,12 +95,12 @@ function WebcamCapture({ onCapture, onClose }: { onCapture: (img: string) => voi
 }
 
 export function GiftDeedEditor() {
-  const [srNo, setSrNo] = useState("2024/01");
-  const [kNo, setKNo] = useState("123");
+  const [srNo, setSrNo] = useState("");
+  const [kNo, setKNo] = useState("");
   const [docDate, setDocDate] = useState(new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' }));
   const [clientName, setClientName] = useState("");
   const [persons, setPersons] = useState<Person[]>([
-    { id: `person-${Date.now()}`, name: 'Richard Hendricks', age: '45', addr: '1450 Page Mill Road, Palo Alto, CA', aadhar: 'XXXX-XXXX-1234', phone: '+1 555-010-2938', email: 'richard@piedpiper.com', photo: undefined, thumb: undefined }
+    { id: `person-${Date.now()}`, name: '', age: '', addr: '', aadhar: '', phone: '', email: '', photo: undefined, thumb: undefined }
   ]);
 
   const [activeCapture, setActiveCapture] = useState<{ personId: string, type: 'photo' | 'thumb' } | null>(null);
@@ -128,31 +128,51 @@ export function GiftDeedEditor() {
 
   const startFingerprintScan = async (personId: string) => {
     try {
-      // For external USB Scanners (e.g. Mantra MFS100), the local desktop wrapper typically hosts a REST API on localhost:8000
-      // We broadcast a capture request. If it fails, they likely don't have the scanner connected.
-      const payload = { "Quality": 60, "TimeOut": 10 };
-      const response = await Promise.race([
-        fetch('http://localhost:8000/mfs100/capture', {
-           method: 'POST',
-           headers: { 'Content-Type': 'application/json' },
-           body: JSON.stringify(payload)
-        }),
-        new Promise((_, r) => setTimeout(() => r(new Error('timeout')), 3000))
-      ]) as any;
+      // The Mantra MFS100/110 dynamically binds to ports 8000-8005 based on process availability. 
+      // We first rapidly ping /info across all possible ports AND device paths to instantly locate the active hardware connection!
+      const ports = [8000, 8001, 8002, 8003, 8004, 8005];
+      const devicePaths = ['mfs100', 'mfs110']; // Covers both L0 (100) and L1 (110) drivers!
+      let activeUrl = null;
+      
+      for (const port of ports) {
+        if (activeUrl) break;
+        for (const path of devicePaths) {
+          try {
+            const infoRes = await Promise.race([
+              fetch(`http://127.0.0.1:${port}/${path}/info`),
+              new Promise((_, r) => setTimeout(() => r(new Error('timeout')), 150)) // rapid sweep
+            ]) as any;
+            if (infoRes && infoRes.ok) {
+               activeUrl = `http://127.0.0.1:${port}/${path}`;
+               break;
+            }
+          } catch (e) { /* silent sweep */ }
+        }
+      }
+
+      if (!activeUrl) {
+         throw new Error('Mantra Service physically disconnected or not running.');
+      }
+
+      // We found the active hardware port and exact device model! 
+      const payload = { "Quality": 60, "TimeOut": 15 };
+      const response = await fetch(`${activeUrl}/capture`, {
+         method: 'POST',
+         headers: { 'Content-Type': 'application/json' },
+         body: JSON.stringify(payload)
+      });
 
       if (response && response.ok) {
          const data = await response.json();
-         // If a base64 Bitmap is returned securely via RD Service overriding driver
          if (data && data.Base64BMP && data.Base64BMP.length > 100) {
             updatePerson(personId, 'thumb', `data:image/bmp;base64,${data.Base64BMP}`);
-            alert('Fingerprint captured natively from external USB Scanner!');
             return;
          }
       }
-      throw new Error('Scanner not found or rejected payload');
+      throw new Error('Optical Capture Failed or User pulled finger away.');
     } catch (e) {
-      // Fallback: If no scanner is physically detected, fall seamlessly back to the WebCam modal!
-      console.log('No USB Fingerprint scanner detected, falling back to WebCam interface...', e);
+      // Fallback: If no scanner is detected or the user took too long, fallback cleanly to WebCam
+      console.log('Mantra scanner fallback triggered:', e);
       setActiveCapture({ personId, type: 'thumb' });
     }
   };
