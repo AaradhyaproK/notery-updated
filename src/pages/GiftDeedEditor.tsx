@@ -633,9 +633,10 @@ export function GiftDeedEditor() {
         />
       )}
       
-      <main className="flex-1 overflow-y-auto w-full p-0 flex flex-col items-center pb-24 bg-[#525659] print:bg-white print:p-0">
-        
-        <div className="w-full max-w-4xl bg-surface-container-lowest p-6 rounded-xl editorial-shadow my-6 no-print border border-outline-variant/15 font-body">
+      <main className="flex-1 overflow-y-auto w-full p-0 bg-[#525659] print:bg-white print:p-0">
+        <div className="flex flex-col xl:flex-row gap-6 p-4 md:p-8 justify-center items-start print:block print:p-0">
+          
+          <div className="w-full xl:max-w-[700px] bg-surface-container-lowest p-6 rounded-xl editorial-shadow no-print border border-outline-variant/15 font-body shrink-0">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
              <div className="flex flex-col">
                <h2 className="font-headline text-3xl font-bold text-on-surface">Data Entry</h2>
@@ -837,9 +838,9 @@ export function GiftDeedEditor() {
               </div>
             ))}
           </div>
-        </div>
+          </div>
 
-        <div id="document-to-print" className="w-full flex flex-col items-center print:block print:w-[210mm] print:m-0 print:p-0" style={{ color: '#000000' }}>
+          <div id="document-to-print" className="w-full xl:sticky xl:top-8 flex-1 flex flex-col items-center print:static print:block print:w-[210mm] print:m-0 print:p-0" style={{ color: '#000000' }}>
           {(() => {
             const chunks = [];
             const intermediateLimit = persons.filter(p => p.email && p.phone).length > 3 ? 3 : 4;
@@ -963,6 +964,7 @@ export function GiftDeedEditor() {
              );
             });
           })()}
+          </div>
         </div>
       </main>
     </Layout>
