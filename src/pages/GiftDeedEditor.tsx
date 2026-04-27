@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Layout } from "../components/layout/Layout";
 import { TopBar } from "../components/layout/TopBar";
-import { Camera, Fingerprint, Printer, X, RefreshCw, Plus, Gavel, Search, Loader2, Save, UploadCloud, FileText } from "lucide-react";
+import { Camera, Fingerprint, Printer, X, RefreshCw, Plus, Gavel, Search, Loader2, Save, UploadCloud, FileText, Eye, Edit3 } from "lucide-react";
 import { db, storage } from "../firebase";
 import { collection, addDoc, getDoc, doc, updateDoc, setDoc, query, orderBy, limit, getDocs, where } from "firebase/firestore";
 import { ref, uploadString, getDownloadURL } from "firebase/storage";
@@ -109,6 +109,7 @@ export function GiftDeedEditor() {
   ]);
   const [basePdfFile, setBasePdfFile] = useState<File | null>(null);
   const [basePdfPageCount, setBasePdfPageCount] = useState(0);
+  const [showPreviewMobile, setShowPreviewMobile] = useState(false);
 
   useEffect(() => {
     if (basePdfFile) {
@@ -634,9 +635,23 @@ export function GiftDeedEditor() {
       )}
 
       <main className="flex-1 overflow-y-auto w-full p-0 bg-surface print:bg-white print:p-0">
+        {/* Mobile Toggle Button */}
+        <div className="xl:hidden flex justify-end p-4 no-print sticky top-0 z-30 bg-surface/80 backdrop-blur-md border-b border-outline-variant/10">
+          <button 
+            onClick={() => setShowPreviewMobile(!showPreviewMobile)}
+            className="flex items-center gap-2 bg-primary text-on-primary px-5 py-2.5 rounded-xl font-body font-bold shadow-lg hover:opacity-90 active:scale-95 transition-all text-sm uppercase tracking-wider"
+          >
+            {showPreviewMobile ? (
+              <><Edit3 size={18} /> Edit Data</>
+            ) : (
+              <><Eye size={18} /> Preview Document</>
+            )}
+          </button>
+        </div>
+
         <div className="flex flex-col xl:flex-row gap-6 p-4 md:p-8 justify-center items-start print:block print:p-0">
 
-          <div className="w-full xl:max-w-[700px] bg-surface-container-lowest p-6 rounded-xl editorial-shadow no-print border border-outline-variant/15 font-body shrink-0">
+          <div className={`w-full xl:max-w-[700px] bg-surface-container-lowest p-6 rounded-xl editorial-shadow no-print border border-outline-variant/15 font-body shrink-0 ${showPreviewMobile ? 'hidden xl:block' : 'block'}`}>
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
               <div className="flex flex-col">
                 <h2 className="font-headline text-3xl font-bold text-on-surface">Data Entry</h2>
@@ -840,7 +855,7 @@ export function GiftDeedEditor() {
             </div>
           </div>
 
-          <div id="document-to-print" className="w-full xl:sticky xl:top-8 flex-1 flex flex-col items-center print:static print:block print:w-[210mm] print:m-0 print:p-0" style={{ color: '#000000' }}>
+          <div id="document-to-print" className={`w-full xl:sticky xl:top-8 flex-1 flex flex-col items-center print:static print:block print:w-[210mm] print:m-0 print:p-0 ${showPreviewMobile ? 'flex' : 'hidden xl:flex'}`} style={{ color: '#000000' }}>
             {(() => {
               const chunks = [];
               const intermediateLimit = persons.filter(p => p.email && p.phone).length > 3 ? 3 : 4;
