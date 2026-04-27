@@ -1,6 +1,6 @@
 import { Layout } from "../components/layout/Layout";
-import { TopBar } from "../components/layout/TopBar";
 import { useEffect, useState } from "react";
+
 import { collection, getDocs, orderBy, query } from "firebase/firestore";
 import { db } from "../firebase";
 import { Loader2, Fingerprint, MapPin, Search, Copy, Check, FileText, Phone, Mail } from "lucide-react";
@@ -90,8 +90,8 @@ export function Clients() {
 
   return (
     <Layout>
-      <TopBar />
       <main className="flex-1 overflow-y-auto p-4 md:p-8">
+
         <div className="max-w-7xl mx-auto space-y-8">
           
           {/* Header */}

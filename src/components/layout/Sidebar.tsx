@@ -1,14 +1,16 @@
 import { Link, useLocation } from "react-router-dom";
-import { LayoutDashboard, FileText, Users, Settings, CircleHelp, LogOut, Plus, ChevronLeft, ChevronRight } from "lucide-react";
+import { LayoutDashboard, FileText, Users, Settings, CircleHelp, Plus, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { useState } from "react";
 
 interface SidebarProps {
   isCollapsed: boolean;
   setIsCollapsed: (collapsed: boolean) => void;
+  isOpen: boolean;
+  setIsOpen: (open: boolean) => void;
 }
 
-export function Sidebar({ isCollapsed, setIsCollapsed }: SidebarProps) {
+export function Sidebar({ isCollapsed, setIsCollapsed, isOpen, setIsOpen }: SidebarProps) {
   const location = useLocation();
   const [isHovered, setIsHovered] = useState(false);
 
@@ -19,7 +21,6 @@ export function Sidebar({ isCollapsed, setIsCollapsed }: SidebarProps) {
     { to: "/settings", icon: Settings, label: "Settings" },
   ];
 
-  // Effective state: expanded if manually expanded OR hovered
   const isExpanded = !isCollapsed || isHovered;
 
   const handleMouseEnter = () => {
@@ -39,35 +40,56 @@ export function Sidebar({ isCollapsed, setIsCollapsed }: SidebarProps) {
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       className={cn(
-        "bg-surface-container-low text-primary flex-col h-screen py-8 border-r-0 fixed left-0 top-0 z-40 hidden md:flex transition-all duration-200 ease-in-out shadow-xl",
-        isExpanded ? "w-64" : "w-20"
+        "bg-surface-container-low text-primary flex-col h-screen py-8 border-r-0 fixed left-0 top-0 z-40 flex transition-all duration-300 ease-in-out shadow-xl",
+        isOpen ? (isExpanded ? "w-64" : "w-20") : "w-0 overflow-hidden -translate-x-full"
       )}
     >
-      {/* Collapse Toggle (Manual override) */}
+      {/* Header with Close button for mobile */}
+      <div className={cn("px-4 mb-10 flex flex-col items-start transition-all", !isExpanded ? "items-center px-0" : "px-8")}>
+        <div className="flex items-center justify-between w-full">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shrink-0 shadow-lg shadow-primary/20">
+               <FileText className="text-on-primary" size={24} />
+            </div>
+            {isExpanded && (
+              <div className="flex flex-col">
+                <h1 className="font-headline text-xl font-bold text-on-surface whitespace-nowrap">NoteryXpert</h1>
+                <span className="font-label text-[10px] text-on-surface-variant tracking-widest uppercase">Editorial Authority</span>
+              </div>
+            )}
+          </div>
+          {isExpanded && (
+            <button onClick={() => setIsOpen(false)} className="md:hidden p-2 hover:bg-surface-container-high rounded-full">
+              <X size={20} />
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Collapse Toggle (Manual override) - Only show if sidebar is open */}
       <button 
         onClick={(e) => {
           e.stopPropagation();
           setIsCollapsed(!isCollapsed);
           setIsHovered(false);
         }}
-        className="absolute -right-3 top-12 bg-primary text-on-primary rounded-full p-1 shadow-md hover:scale-110 transition-transform z-50 border-2 border-surface"
+        className={cn(
+          "absolute -right-3 top-12 bg-primary text-on-primary rounded-full p-1 shadow-md hover:scale-110 transition-transform z-50 border-2 border-surface",
+          !isOpen && "hidden"
+        )}
       >
         {isCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
       </button>
 
-      <div className={cn("px-4 mb-10 flex flex-col items-start transition-all", !isExpanded ? "items-center px-0" : "px-8")}>
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shrink-0 shadow-lg shadow-primary/20">
-             <FileText className="text-on-primary" size={24} />
-          </div>
-          {isExpanded && (
-            <div className="flex flex-col">
-              <h1 className="font-headline text-xl font-bold text-on-surface whitespace-nowrap">NoteryXpert</h1>
-              <span className="font-label text-[10px] text-on-surface-variant tracking-widest uppercase">Editorial Authority</span>
-            </div>
-          )}
-        </div>
-      </div>
+      {/* Close button for Desktop (Optional, but good for UX) */}
+      {isOpen && isExpanded && (
+        <button 
+          onClick={() => setIsOpen(false)}
+          className="absolute right-4 top-4 p-2 hover:bg-surface-container-high rounded-full md:flex hidden"
+        >
+          <ChevronLeft size={20} />
+        </button>
+      )}
 
       <div className="px-4 mb-8">
         <Link 
@@ -77,6 +99,7 @@ export function Sidebar({ isCollapsed, setIsCollapsed }: SidebarProps) {
             !isExpanded ? "justify-center px-0 h-12" : "px-4 justify-start"
           )}
           title={!isExpanded ? "New Document" : ""}
+          onClick={() => setIsOpen(false)}
         >
           <Plus size={18} />
           {isExpanded && <span className="whitespace-nowrap">New Document</span>}
@@ -93,6 +116,7 @@ export function Sidebar({ isCollapsed, setIsCollapsed }: SidebarProps) {
                 <Link
                   to={link.to}
                   title={!isExpanded ? link.label : ""}
+                  onClick={() => setIsOpen(false)}
                   className={cn(
                     "py-3 flex items-center transition-all duration-200",
                     !isExpanded ? "px-0 justify-center" : "px-8 gap-4",
@@ -121,12 +145,6 @@ export function Sidebar({ isCollapsed, setIsCollapsed }: SidebarProps) {
               <CircleHelp size={20} />
               {isExpanded && <span>Help Center</span>}
             </a>
-          </li>
-          <li>
-            <button className={cn("w-full text-on-surface py-3 flex items-center hover:text-primary transition-all translate-x-1 duration-200", !isExpanded ? "px-0 justify-center" : "px-8 gap-4")}>
-              <LogOut size={20} />
-              {isExpanded && <span>Sign Out</span>}
-            </button>
           </li>
         </ul>
       </div>

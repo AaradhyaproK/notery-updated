@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Layout } from "../components/layout/Layout";
-import { TopBar } from "../components/layout/TopBar";
+
 import { Camera, Fingerprint, Printer, X, RefreshCw, Plus, Gavel, Search, Loader2, Save, UploadCloud, FileText, Eye, Edit3 } from "lucide-react";
 import { db, storage } from "../firebase";
 import { collection, addDoc, getDoc, doc, updateDoc, setDoc, query, orderBy, limit, getDocs, where } from "firebase/firestore";
@@ -622,9 +622,7 @@ export function GiftDeedEditor() {
 
   return (
     <Layout>
-      <div className="no-print">
-        <TopBar />
-      </div>
+
 
       {/* WebCam Modal for both Face and Thumb captures */}
       {activeCapture && (
@@ -886,11 +884,13 @@ export function GiftDeedEditor() {
                 const isLastPage = pageIndex === chunks.length - 1;
 
                 return (
-                  <article
-                    key={pageIndex}
-                    className={`w-full max-w-[210mm] min-h-[297mm] overflow-visible relative flex flex-col p-4 sm:p-6 md:p-[15mm] box-border print:shadow-none print:w-[210mm] print:max-w-none print:p-[15mm] print:m-0 ${pageIndex > 0 ? 'mt-8 print:mt-0 html2pdf__page-break' : 'my-[20px] print:m-0'}`}
-                    style={{ color: '#000000', backgroundColor: '#ffffff', boxShadow: '0 4px 12px rgba(0,0,0,0.2)', fontFamily: '"Times New Roman", serif', pageBreakAfter: isLastPage ? 'auto' : 'always' }}
-                  >
+                  <div key={pageIndex} className="mobile-preview-wrapper no-print md:print:block">
+                    <article
+                      className="mobile-preview-content relative flex flex-col p-[15mm] box-border print:shadow-none print:w-[210mm] print:max-w-none print:p-[15mm] print:m-0 html2pdf__page-break"
+                      style={{ color: '#000000', backgroundColor: '#ffffff', boxShadow: '0 4px 12px rgba(0,0,0,0.2)', fontFamily: '"Times New Roman", serif', pageBreakAfter: isLastPage ? 'auto' : 'always' }}
+                    >
+
+
                     <img src="/2.png" alt="watermark" className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[60%] opacity-5 pointer-events-none z-0" />
 
                     {pageIndex === 0 && (
@@ -976,6 +976,8 @@ export function GiftDeedEditor() {
                       Page {pageIndex + 1} of {chunks.length}
                     </div>
                   </article>
+                </div>
+
                 );
               });
             })()}

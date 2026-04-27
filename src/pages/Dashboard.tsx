@@ -1,6 +1,6 @@
 import { Layout } from "../components/layout/Layout";
-import { TopBar } from "../components/layout/TopBar";
 import { FileText, Folder, ClipboardList, CalendarDays, Loader2, Calendar, TrendingUp } from "lucide-react";
+
 import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { collection, getDocs, query, orderBy } from "firebase/firestore";
@@ -104,8 +104,8 @@ export function Dashboard() {
 
   return (
     <Layout>
-      <TopBar />
       <main className="flex-1 overflow-y-auto p-4 md:p-8">
+
         <div className="max-w-6xl mx-auto space-y-12">
           {/* Header & Quick Actions */}
           <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">

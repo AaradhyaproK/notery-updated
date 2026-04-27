@@ -1,6 +1,6 @@
 import { Layout } from "../components/layout/Layout";
-import { TopBar } from "../components/layout/TopBar";
 import { User, SlidersHorizontal, CreditCard, Shield, Info } from "lucide-react";
+
 import { useState, useEffect } from "react";
 import { db } from "../firebase";
 import { doc, getDoc, setDoc } from "firebase/firestore";
@@ -52,8 +52,8 @@ export function Settings() {
 
   return (
     <Layout>
-      <TopBar />
       <main className="flex-1 overflow-y-auto p-4 md:p-8 lg:p-12">
+
         <div className="max-w-6xl mx-auto w-full">
           <div className="mb-10">
             <h2 className="text-4xl font-headline font-bold text-on-surface mb-2">Account Settings</h2>

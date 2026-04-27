@@ -1,6 +1,6 @@
 import { Layout } from "../components/layout/Layout";
-import { TopBar } from "../components/layout/TopBar";
 import { Search, ChevronDown, Calendar, Plus, ChevronLeft, ChevronRight, FileText, Loader2, Copy } from "lucide-react";
+
 import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { collection, getDocs, query, orderBy } from "firebase/firestore";
@@ -106,8 +106,8 @@ export function Documents() {
 
   return (
     <Layout>
-      <TopBar />
       <main className="flex-1 overflow-y-auto p-4 md:p-8">
+
         <div className="max-w-7xl mx-auto space-y-8">
           
           {/* Page Header */}
