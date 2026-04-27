@@ -1,5 +1,6 @@
 import { Layout } from "../components/layout/Layout";
-import { Search, ChevronDown, Calendar, Plus, ChevronLeft, ChevronRight, FileText, Loader2, Copy } from "lucide-react";
+import { Search, ChevronDown, Calendar, Plus, ChevronLeft, ChevronRight, FileText, Loader2, Copy, Mail } from "lucide-react";
+
 
 import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
@@ -233,10 +234,40 @@ export function Documents() {
                       </span>
                       
                       {doc.pdfUrl && (
-                        <button onClick={() => window.open(doc.pdfUrl, '_blank')} className="flex items-center gap-1.5 bg-green-100 hover:bg-green-200 text-green-800 px-3 py-1.5 rounded-full font-label text-xs uppercase tracking-wider transition-colors">
-                          <FileText size={14} /> View
-                        </button>
+                        <>
+                          <button onClick={() => window.open(doc.pdfUrl, '_blank')} className="flex items-center gap-1.5 bg-green-100 hover:bg-green-200 text-green-800 px-3 py-1.5 rounded-full font-label text-xs uppercase tracking-wider transition-colors">
+                            <FileText size={14} /> View
+                          </button>
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const subject = encodeURIComponent(`Notarized Document - ${doc.clientName}`);
+                              const bodyText = `Please find attached the notarized copy of Document duly certified in accordance with the applicable legal requirements.
+
+The document has been completed and notarized to ensure its authenticity and validity for your intended purpose. Kindly review the attached copy and confirm receipt.
+
+Document Link: ${doc.pdfUrl}
+
+Thank you.
+
+Sincerely,
+
+Sameer Shrikant Vispute
+BLS., LLB., DIPL
+Advocate High Court
+
+Contact Details : Mob. 8286000888 / 9933806888 | Email - advsameervispute@gmail.com`;
+                              const body = encodeURIComponent(bodyText);
+                              const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&su=${subject}&body=${body}`;
+                              window.open(gmailUrl, '_blank');
+                            }} 
+                            className="flex items-center gap-1.5 bg-blue-100 hover:bg-blue-200 text-blue-800 px-3 py-1.5 rounded-full font-label text-xs uppercase tracking-wider transition-colors"
+                          >
+                            <Mail size={14} /> Mail
+                          </button>
+                        </>
                       )}
+
                     </div>
                   </div>
                 ))

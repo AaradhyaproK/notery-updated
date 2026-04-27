@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Layout } from "../components/layout/Layout";
 
-import { Camera, Fingerprint, Printer, X, RefreshCw, Plus, Gavel, Search, Loader2, Save, UploadCloud, FileText, Eye, Edit3 } from "lucide-react";
+import { Camera, Fingerprint, Printer, X, RefreshCw, Plus, Gavel, Search, Loader2, Save, UploadCloud, FileText, Eye, Edit3, Mail } from "lucide-react";
+
 import { db, storage } from "../firebase";
 import { collection, addDoc, getDoc, doc, updateDoc, setDoc, query, orderBy, limit, getDocs, where } from "firebase/firestore";
 import { ref, uploadString, getDownloadURL } from "firebase/storage";
@@ -599,12 +600,11 @@ export function GiftDeedEditor() {
   const handlePrint = async () => {
     if (!validatePersons()) return;
     if (basePdfFile) {
-      // We have an uploaded base PDF, so we must structurally merge before handing it to the OS printer!
       try {
-        setIsUploadingPdf(true); // Re-use the existing loading UI spinner on the button
+        setIsUploadingPdf(true);
         const mergedBlob = await generateMergedPdfBlob();
         const blobUrl = URL.createObjectURL(mergedBlob);
-        window.open(blobUrl, '_blank'); // Opens the natively merged PDF perfectly in the browser's PDF viewer for flawless printing
+        window.open(blobUrl, '_blank');
       } catch (e) {
         console.error("Print Merge Error:", e);
         alert("Failed to merge original document for printing. Dropping back to standalone Notary layout print.");
@@ -613,15 +613,42 @@ export function GiftDeedEditor() {
         setIsUploadingPdf(false);
       }
     } else {
-      // Just standard flawless HTML single-page print handling
       window.print();
     }
   };
 
+  const handleSendMail = () => {
+    if (!pdfUrl) {
+      alert("Please generate and upload the PDF first!");
+      return;
+    }
+    const recipient = persons[0]?.email || "";
+    const subject = encodeURIComponent(`Notarized Document - ${docName || 'Gift Deed'}`);
+    const bodyText = `Please find attached the notarized copy of Document duly certified in accordance with the applicable legal requirements.
 
+The document has been completed and notarized to ensure its authenticity and validity for your intended purpose. Kindly review the attached copy and confirm receipt.
+
+Document Link: ${pdfUrl}
+
+Thank you.
+
+Sincerely,
+
+Sameer Shrikant Vispute
+BLS., LLB., DIPL
+Advocate High Court
+
+Contact Details : Mob. 8286000888 / 9933806888 | Email - advsameervispute@gmail.com`;
+
+    const body = encodeURIComponent(bodyText);
+    const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${recipient}&su=${subject}&body=${body}`;
+    window.open(gmailUrl, '_blank');
+  };
 
   return (
     <Layout>
+
+
 
 
       {/* WebCam Modal for both Face and Thumb captures */}
@@ -661,10 +688,16 @@ export function GiftDeedEditor() {
                   {isUploadingPdf ? "Generating..." : "Generate & Upload PDF"}
                 </button>
                 {pdfUrl && (
-                  <button onClick={() => window.open(pdfUrl, '_blank')} className="w-full sm:w-auto justify-center flex items-center gap-2 bg-green-100 text-green-800 px-5 py-3 rounded-xl font-body font-bold shadow-sm hover:opacity-90 transition-all text-sm uppercase tracking-wider whitespace-nowrap">
-                    <FileText size={18} /> View PDF
-                  </button>
+                  <>
+                    <button onClick={() => window.open(pdfUrl, '_blank')} className="w-full sm:w-auto justify-center flex items-center gap-2 bg-green-100 text-green-800 px-5 py-3 rounded-xl font-body font-bold shadow-sm hover:opacity-90 transition-all text-sm uppercase tracking-wider whitespace-nowrap">
+                      <FileText size={18} /> View PDF
+                    </button>
+                    <button onClick={handleSendMail} className="w-full sm:w-auto justify-center flex items-center gap-2 bg-blue-100 text-blue-800 px-5 py-3 rounded-xl font-body font-bold shadow-sm hover:opacity-90 transition-all text-sm uppercase tracking-wider whitespace-nowrap">
+                      <Mail size={18} /> Send via Gmail
+                    </button>
+                  </>
                 )}
+
                 <button
                   onClick={handlePrint}
                   className="w-full sm:w-auto justify-center flex items-center gap-2 bg-primary text-on-primary px-6 py-3 rounded-xl font-body font-bold shadow-[0_4px_20px_-4px_rgba(0,99,156,0.4)] hover:opacity-90 active:scale-95 transition-all text-sm uppercase tracking-wider whitespace-nowrap"
