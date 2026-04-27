@@ -642,19 +642,19 @@ export function GiftDeedEditor() {
                 <h2 className="font-headline text-3xl font-bold text-on-surface">Data Entry</h2>
                 <p className="text-on-surface-variant font-body text-sm mt-1">Configure all document variables below. Changes auto-sync to the print preview.</p>
               </div>
-              <div className="flex gap-3">
-                <button onClick={handleAutoGenerateAndUploadPdf} disabled={isUploadingPdf} className={`flex items-center gap-2 px-5 py-3 rounded-xl font-body font-bold shadow-sm transition-all text-sm uppercase tracking-wider whitespace-nowrap ${isUploadingPdf ? 'bg-surface-variant text-on-surface-variant opacity-70 cursor-not-allowed' : 'bg-tertiary-container text-on-tertiary-container hover:opacity-90 active:scale-95'}`}>
+              <div className="w-full md:w-auto flex flex-col sm:flex-row sm:flex-wrap gap-3">
+                <button onClick={handleAutoGenerateAndUploadPdf} disabled={isUploadingPdf} className={`w-full sm:w-auto justify-center flex items-center gap-2 px-5 py-3 rounded-xl font-body font-bold shadow-sm transition-all text-sm uppercase tracking-wider whitespace-nowrap ${isUploadingPdf ? 'bg-surface-variant text-on-surface-variant opacity-70 cursor-not-allowed' : 'bg-tertiary-container text-on-tertiary-container hover:opacity-90 active:scale-95'}`}>
                   {isUploadingPdf ? <Loader2 size={18} className="animate-spin" /> : <UploadCloud size={18} />}
                   {isUploadingPdf ? "Generating..." : "Generate & Upload PDF"}
                 </button>
                 {pdfUrl && (
-                  <button onClick={() => window.open(pdfUrl, '_blank')} className="flex items-center gap-2 bg-green-100 text-green-800 px-5 py-3 rounded-xl font-body font-bold shadow-sm hover:opacity-90 transition-all text-sm uppercase tracking-wider whitespace-nowrap">
+                  <button onClick={() => window.open(pdfUrl, '_blank')} className="w-full sm:w-auto justify-center flex items-center gap-2 bg-green-100 text-green-800 px-5 py-3 rounded-xl font-body font-bold shadow-sm hover:opacity-90 transition-all text-sm uppercase tracking-wider whitespace-nowrap">
                     <FileText size={18} /> View PDF
                   </button>
                 )}
                 <button
                   onClick={handlePrint}
-                  className="flex items-center gap-2 bg-primary text-on-primary px-6 py-3 rounded-xl font-body font-bold shadow-[0_4px_20px_-4px_rgba(0,99,156,0.4)] hover:opacity-90 active:scale-95 transition-all text-sm uppercase tracking-wider whitespace-nowrap"
+                  className="w-full sm:w-auto justify-center flex items-center gap-2 bg-primary text-on-primary px-6 py-3 rounded-xl font-body font-bold shadow-[0_4px_20px_-4px_rgba(0,99,156,0.4)] hover:opacity-90 active:scale-95 transition-all text-sm uppercase tracking-wider whitespace-nowrap"
                 >
                   <Printer size={18} />
                   Print Document
@@ -873,30 +873,30 @@ export function GiftDeedEditor() {
                 return (
                   <article
                     key={pageIndex}
-                    className={`w-[210mm] min-h-[297mm] overflow-visible relative flex flex-col p-[15mm] box-border print:shadow-none print:w-[210mm] print:max-w-none print:p-[15mm] print:m-0 ${pageIndex > 0 ? 'mt-8 print:mt-0 html2pdf__page-break' : 'my-[20px] print:m-0'}`}
+                    className={`w-full max-w-[210mm] min-h-[297mm] overflow-visible relative flex flex-col p-4 sm:p-6 md:p-[15mm] box-border print:shadow-none print:w-[210mm] print:max-w-none print:p-[15mm] print:m-0 ${pageIndex > 0 ? 'mt-8 print:mt-0 html2pdf__page-break' : 'my-[20px] print:m-0'}`}
                     style={{ color: '#000000', backgroundColor: '#ffffff', boxShadow: '0 4px 12px rgba(0,0,0,0.2)', fontFamily: '"Times New Roman", serif', pageBreakAfter: isLastPage ? 'auto' : 'always' }}
                   >
                     <img src="/2.png" alt="watermark" className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[60%] opacity-5 pointer-events-none z-0" />
 
                     {pageIndex === 0 && (
                       <>
-                        <div className="flex justify-between items-center text-center">
-                          <img src="/1.png" alt="Logo 1" className="h-24 w-24" />
-                          <div className="flex-1 px-1">
+                        <div className="flex justify-between items-center text-center gap-2 sm:gap-4">
+                          <img src="/1.png" alt="Logo 1" className="h-14 w-14 sm:h-20 sm:w-20 md:h-24 md:w-24 shrink-0" />
+                          <div className="flex-1 px-1 min-w-0">
                             <div className="inline-block">
-                              <h2 className="font-bold text-2xl m-0">Mr. Sameer Shrikant Vispute</h2>
+                              <h2 className="font-bold text-base sm:text-xl md:text-2xl m-0">Mr. Sameer Shrikant Vispute</h2>
                               <small className="block text-right">BLS., LLB., DIPL</small>
-                              <h4 className="font-bold text-xl m-0">Advocate High Court</h4>
+                              <h4 className="font-bold text-base sm:text-lg md:text-xl m-0">Advocate High Court</h4>
                             </div>
-                            <div className="font-black text-[1.1rem] leading-tight my-1.5 uppercase tracking-wide" style={{ color: '#b30000' }}>
+                            <div className="font-black text-sm sm:text-base md:text-[1.1rem] leading-tight my-1.5 uppercase tracking-wide" style={{ color: '#b30000' }}>
                               Notary  (Govt. of India) <br />Reg. No. 57704
                             </div>
-                            <small>Mob. 8286000888 / 9933806888 | Email - advsameervispute@gmail.com</small>
+                            <small className="break-words">Mob. 8286000888 / 9933806888 | Email - advsameervispute@gmail.com</small>
                             <br />
-                            <small className="block whitespace-nowrap text-[12px] tracking-tight">Shree Bhagwati Krupa, Pendse Nagar, Lane No 2, Dombivli (E), Dist. Thane - 421201.</small>
-                            <small className="block whitespace-nowrap text-[12px] tracking-tight">A002 Om Residency, Khambalpada, Off 90 Feet Road, Thakurli, Dombivli (E), Dist. Thane - 421201</small>
+                            <small className="block text-[11px] sm:text-[12px] tracking-tight break-words">Shree Bhagwati Krupa, Pendse Nagar, Lane No 2, Dombivli (E), Dist. Thane - 421201.</small>
+                            <small className="block text-[11px] sm:text-[12px] tracking-tight break-words">A002 Om Residency, Khambalpada, Off 90 Feet Road, Thakurli, Dombivli (E), Dist. Thane - 421201</small>
                           </div>
-                          <img src="/3.png" alt="Logo 2" className="h-24 w-24" />
+                          <img src="/3.png" alt="Logo 2" className="h-14 w-14 sm:h-20 sm:w-20 md:h-24 md:w-24 shrink-0" />
                         </div>
 
                         <div className="flex justify-between mt-4">
