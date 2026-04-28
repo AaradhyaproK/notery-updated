@@ -2,8 +2,8 @@ import { Layout } from "../components/layout/Layout";
 import { useDeferredValue, useEffect, useMemo, useRef, useState, type MouseEvent, type TouchEvent } from "react";
 
 import { collection, getDocs, orderBy, query } from "firebase/firestore";
-import { db } from "../firebaseDb";
-import { Loader2, Fingerprint, MapPin, Search, Copy, Check, FileText, Phone, Mail } from "lucide-react";
+import { db } from "../firebaseDb"; // Keep db for Firestore operations
+import { Loader2, Fingerprint, MapPin, Search, Copy, Check, FileText, Phone, Mail, X } from "lucide-react";
 
 interface ParsedClient {
    id: string;
@@ -14,9 +14,8 @@ interface ParsedClient {
    phone?: string;
    email?: string;
    photoUrl?: string;
-   linkedDocuments: number;
-   latestDocumentId: string;
-   latestDocumentUrl?: string;
+   linkedDocuments: number; // Still useful for display count
+   allDocuments: { id: string; url?: string; srNo?: string; kNo?: string; pageNo?: string; }[]; // List of all associated documents
 }
 
 export function Clients() {
@@ -25,6 +24,8 @@ export function Clients() {
   const [searchQuery, setSearchQuery] = useState("");
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const deferredSearchQuery = useDeferredValue(searchQuery);
+  const [showDocumentListModal, setShowDocumentListModal] = useState(false);
+  const [selectedClient, setSelectedClient] = useState<ParsedClient | null>(null);
   const phoneLongPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const phoneLongPressTriggeredRef = useRef(false);
 
@@ -77,27 +78,39 @@ export function Clients() {
                 let uniqueKey = validAadhar ? person.aadhar.trim() : person.name.trim().toLowerCase();
                 
                 if (clientMap.has(uniqueKey)) {
-                   const existing = clientMap.get(uniqueKey)!;
-                   existing.linkedDocuments += 1;
-                   if (!existing.photoUrl && person.photo && person.photo.startsWith('http')) {
-                       existing.photoUrl = person.photo;
-                   }
-                   if (!existing.phone && person.phone) existing.phone = person.phone;
-                   if (!existing.email && person.email) existing.email = person.email;
+                  const existing = clientMap.get(uniqueKey)!;
+                  existing.linkedDocuments += 1;
+                  existing.allDocuments.push({
+                    id: documentId,
+                    url: data.pdfUrl,
+                    srNo: data.srNo,
+                    kNo: data.kNo,
+                    pageNo: data.pageNo
+                  });
+                  if (!existing.photoUrl && person.photo && person.photo.startsWith('http')) {
+                      existing.photoUrl = person.photo;
+                  }
+                  if (!existing.phone && person.phone) existing.phone = person.phone;
+                  if (!existing.email && person.email) existing.email = person.email;
                 } else {
-                   clientMap.set(uniqueKey, {
-                      id: uniqueKey,
-                      name: person.name,
-                      aadhar: person.aadhar || 'Pending',
-                      addr: person.addr || 'No Address Logged',
-                      age: person.age || '-',
-                      phone: person.phone,
-                      email: person.email,
-                      photoUrl: person.photo?.startsWith('http') ? person.photo : undefined,
-                      linkedDocuments: 1,
-                      latestDocumentId: documentId,
-                      latestDocumentUrl: data.pdfUrl
-                   });
+                  clientMap.set(uniqueKey, {
+                    id: uniqueKey,
+                    name: person.name,
+                    aadhar: person.aadhar || 'Pending',
+                    addr: person.addr || 'No Address Logged',
+                    age: person.age || '-',
+                    phone: person.phone,
+                    email: person.email,
+                    photoUrl: person.photo?.startsWith('http') ? person.photo : undefined,
+                    linkedDocuments: 1,
+                    allDocuments: [{
+                      id: documentId,
+                      url: data.pdfUrl,
+                      srNo: data.srNo,
+                      kNo: data.kNo,
+                      pageNo: data.pageNo
+                    }]
+                  });
                 }
              });
           }
@@ -178,7 +191,11 @@ export function Clients() {
                   <div
                     key={idx}
                     className="content-auto bg-surface-container-lowest rounded-2xl border border-outline-variant/15 p-6 hover:shadow-lg transition-shadow duration-300 flex flex-col gap-5 editorial-shadow cursor-pointer"
-                    onClick={() => openClientDocument(client.latestDocumentUrl, client.latestDocumentId)}
+                    onClick={() => {
+                      // Always show the modal, even if there's only one document
+                      setSelectedClient(client);
+                      setShowDocumentListModal(true);
+                    }}
                     title="Open latest uploaded document in new tab"
                   >
                      
@@ -255,6 +272,40 @@ export function Clients() {
           )}
         </div>
       </main>
+
+      {/* Document List Modal */}
+      {showDocumentListModal && selectedClient && (
+        <div className="fixed inset-0 bg-black/60 z-[9999] flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-surface-container-lowest rounded-xl p-6 shadow-2xl w-full max-w-md flex flex-col gap-4">
+            <div className="flex justify-between items-center">
+              <h3 className="font-headline text-xl font-bold text-on-surface">Documents for {selectedClient.name}</h3>
+              <button onClick={() => setShowDocumentListModal(false)} className="p-2 hover:bg-surface-container-high rounded-full transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="space-y-2 max-h-80 overflow-y-auto pr-2 app-scroll">
+              {selectedClient.allDocuments.map((docItem) => (
+                <button
+                  key={docItem.id}
+                  onClick={() => {
+                    openClientDocument(docItem.url, docItem.id);
+                    setShowDocumentListModal(false); // Close modal after navigating
+                  }}
+                  className="w-full text-left p-3 rounded-lg bg-surface-container-high hover:bg-surface-container-highest transition-colors flex items-center gap-3"
+                >
+                  <FileText size={18} className="text-primary" />
+                  <span className="font-body text-sm text-on-surface flex-1">
+                    {docItem.srNo ? `Sr No: ${docItem.srNo}` : `Document ID: ${docItem.id}`} 
+                    {(docItem.kNo || docItem.pageNo) && (
+                      <span className="text-on-surface-variant ml-2"> (Reg: {docItem.kNo || '-'} / Pg: {docItem.pageNo || '-'})</span>
+                    )}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </Layout>
   );
 }

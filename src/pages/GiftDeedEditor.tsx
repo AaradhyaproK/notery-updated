@@ -287,7 +287,7 @@ function WebcamCapture({ onCapture, onClose }: { onCapture: (img: string) => voi
         ctx.translate(canvas.width, 0);
         ctx.scale(-1, 1);
         ctx.drawImage(videoRef.current, 0, 0, width, height); // Draw with new dimensions
-        onCapture(canvas.toDataURL('image/jpeg', 0.6)); // Standardize quality to 0.6 (reduced for smaller PDF)
+        onCapture(canvas.toDataURL('image/jpeg', 0.3)); // Aggressively reduced quality for smaller PDF
         onClose();
       }
     }
@@ -459,7 +459,7 @@ export function GiftDeedEditor() {
           ctx?.drawImage(img, 0, 0, width, height);
 
           // Get the compressed data URL
-          const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.6); // 0.6 is a good balance for quality/size (reduced for smaller PDF)
+          const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.3); // Aggressively reduced quality for smaller PDF
           updatePerson(personId, type, compressedDataUrl);
         };
         img.src = reader.result as string;
