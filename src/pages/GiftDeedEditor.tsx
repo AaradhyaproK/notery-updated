@@ -253,7 +253,7 @@ function WebcamCapture({ onCapture, onClose }: { onCapture: (img: string) => voi
   }, []); // Run exactly once on mount!
 
   const capture = () => {
-    if (videoRef.current && videoRef.current.videoWidth > 0 && videoRef.current.videoHeight > 0) {
+    if (videoRef.current && videoRef.current.videoWidth > 0 && videoRef.current.videoHeight > 0) { // Ensure video is active
       const videoWidth = videoRef.current.videoWidth;
       const videoHeight = videoRef.current.videoHeight;
 
@@ -262,7 +262,7 @@ function WebcamCapture({ onCapture, onClose }: { onCapture: (img: string) => voi
       canvas.height = videoRef.current.videoHeight;
       const ctx = canvas.getContext('2d');
       if (ctx) {
-        const MAX_DIMENSION = 800; // Max width or height for the captured image
+        const MAX_DIMENSION = 600; // Max width or height for the captured image (reduced for smaller PDF)
         let width = videoWidth;
         let height = videoHeight;
 
@@ -287,7 +287,7 @@ function WebcamCapture({ onCapture, onClose }: { onCapture: (img: string) => voi
         ctx.translate(canvas.width, 0);
         ctx.scale(-1, 1);
         ctx.drawImage(videoRef.current, 0, 0, width, height); // Draw with new dimensions
-        onCapture(canvas.toDataURL('image/jpeg', 0.7)); // Standardize quality to 0.7
+        onCapture(canvas.toDataURL('image/jpeg', 0.6)); // Standardize quality to 0.6 (reduced for smaller PDF)
         onClose();
       }
     }
@@ -437,7 +437,7 @@ export function GiftDeedEditor() {
           const canvas = document.createElement('canvas');
           const ctx = canvas.getContext('2d');
 
-          const MAX_DIMENSION = 800; // Max width or height for the image
+          const MAX_DIMENSION = 600; // Max width or height for the image (reduced for smaller PDF)
           let width = img.width;
           let height = img.height;
 
@@ -459,7 +459,7 @@ export function GiftDeedEditor() {
           ctx?.drawImage(img, 0, 0, width, height);
 
           // Get the compressed data URL
-          const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.7); // 0.7 is a good balance for quality/size
+          const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.6); // 0.6 is a good balance for quality/size (reduced for smaller PDF)
           updatePerson(personId, type, compressedDataUrl);
         };
         img.src = reader.result as string;
@@ -802,56 +802,20 @@ export function GiftDeedEditor() {
     if (!silent) setIsSaving(true);
     try {
       // Deep clone persons and strip out any 'undefined' values (Firestore rejects undefined)
+      // Also, if photo/thumb are base64, they are not to be saved to cloud, so clear them.
+      // If they are already URLs (from a previous fetch), keep them.
       const personsToSave = persons.map(p => {
         const newP: any = { ...p };
-        if (newP.photo === undefined) delete newP.photo;
-        if (newP.thumb === undefined) delete newP.thumb;
+        if (newP.photo && String(newP.photo).startsWith('data:image')) {
+          newP.photo = null; // Do not save base64 to Firestore, and not uploading to Cloudinary
+        }
+        if (newP.thumb && String(newP.thumb).startsWith('data:image')) {
+          newP.thumb = null; // Do not save base64 to Firestore, and not uploading to Cloudinary
+        }
+        if (newP.photo === undefined) delete newP.photo; // Ensure undefined fields are removed for Firestore
+        if (newP.thumb === undefined) delete newP.thumb; // Ensure undefined fields are removed for Firestore
         return newP;
       });
-
-      const uploadPromises: Promise<void>[] = [];
-
-      const uploadImageToCloudinary = async (base64Data: string, type: 'photo' | 'thumb') => {
-        const formData = new FormData();
-        formData.append('file', base64Data);
-        formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
-        formData.append('folder', `notery_images/${type}`); // Separate folders for photos/thumbs
-
-        const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/upload`, {
-          method: 'POST',
-          body: formData,
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(`Cloudinary image upload failed for ${type}: ${errorData.error?.message || JSON.stringify(errorData)}`);
-        }
-        const data = await response.json();
-        return data.secure_url;
-      };
-
-      personsToSave.forEach((p, i) => {
-        // Handle photo upload
-        if (p.photo && String(p.photo).startsWith('data:image')) {
-          uploadPromises.push((async () => {
-            console.log(`Uploading photo for person ${i} to Cloudinary...`);
-            const downloadUrl = await uploadImageToCloudinary(p.photo, 'photo');
-            p.photo = downloadUrl;
-            console.log(`Photo ${i} uploaded successfully.`);
-          })());
-        }
-
-        // Handle thumb upload
-        if (p.thumb && String(p.thumb).startsWith('data:image')) {
-          uploadPromises.push((async () => {
-            console.log(`Uploading thumb for person ${i} to Cloudinary...`);
-            const downloadUrl = await uploadImageToCloudinary(p.thumb, 'thumb');
-            p.thumb = downloadUrl;
-            console.log(`Thumb ${i} uploaded successfully.`);
-          })());
-        }
-      });
-      await Promise.all(uploadPromises); // Wait for all image uploads to complete concurrently
 
       // Ensure unique combination of kNo and pageNo
       if (kNo && pageNo) {
