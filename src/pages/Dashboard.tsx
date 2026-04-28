@@ -46,6 +46,16 @@ export function Dashboard() {
   const [recentDocs, setRecentDocs] = useState<any[]>([]);
   const [chartData, setChartData] = useState<{label: string, count: number, percentage: number, date: string}[]>([]);
 
+  const openDocumentInNewTab = (documentId: string) => {
+    if (!documentId) return;
+    const targetUrl = `/documents/new?docId=${encodeURIComponent(documentId)}`;
+    const anchor = document.createElement("a");
+    anchor.href = targetUrl;
+    anchor.target = "_blank";
+    anchor.rel = "noopener noreferrer";
+    anchor.click();
+  };
+
   useEffect(() => {
     return onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
@@ -98,6 +108,7 @@ export function Dashboard() {
             }
           }
 
+          // Keep only the 5 most recent documents (query already sorted by createdAt desc)
           if (formattedDocsList.length < 5) {
             const firstPerson = data.persons?.[0];
             let clientName = data.clientName ? data.clientName : (firstPerson ? firstPerson.name : "Unknown Client");
@@ -256,7 +267,7 @@ export function Dashboard() {
 
                 {/* Recent Documents Section */}
                 <div className="flex flex-col">
-                  <h3 className="font-headline text-xl font-bold text-on-surface mb-6 flex items-center">Recent Instruments</h3>
+                  <h3 className="font-headline text-xl font-bold text-on-surface mb-6 flex items-center">Recent Documents</h3>
                   <div className="bg-surface-container-lowest rounded-xl editorial-shadow overflow-hidden border border-outline-variant/15 flex-grow">
                     <div className="w-full">
                       <div className="grid grid-cols-12 bg-surface-container-low/50 px-6 py-4 font-label text-[11px] font-bold text-on-surface-variant uppercase tracking-wider hidden md:grid border-b border-outline-variant/15">
@@ -270,7 +281,7 @@ export function Dashboard() {
                            <div className="p-8 text-center text-on-surface-variant font-body text-sm">No recent documents found in database.</div>
                         ) : (
                           recentDocs.map((doc) => (
-                            <div key={doc.id} className="grid grid-cols-1 md:grid-cols-12 items-center px-6 py-4 hover:bg-surface-bright transition-colors gap-y-2 cursor-pointer group" onClick={() => { navigator.clipboard.writeText(doc.id); alert('ID Copied!'); }}>
+                            <div key={doc.id} className="grid grid-cols-1 md:grid-cols-12 items-center px-6 py-4 hover:bg-surface-bright transition-colors gap-y-2 cursor-pointer group" onClick={() => openDocumentInNewTab(doc.id)}>
                               <div className="col-span-1 md:col-span-3 font-label text-sm font-semibold text-on-surface group-hover:text-primary transition-colors truncate pr-2">
                                 <span className="md:hidden font-semibold mr-2 text-on-surface-variant">Subject:</span>{doc.srNo ? `Sr: ${doc.srNo}` : doc.id}
                               </div>
