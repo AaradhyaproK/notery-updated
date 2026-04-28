@@ -1,5 +1,5 @@
 import { Layout } from "../components/layout/Layout";
-import { User, SlidersHorizontal, CreditCard, Shield, Info } from "lucide-react";
+import { User, Info } from "lucide-react";
 
 import { useState, useEffect } from "react";
 import { db } from "../firebase";
@@ -66,18 +66,6 @@ export function Settings() {
                 <a href="#profile" className="px-4 py-3 rounded-lg bg-surface-container-low text-primary font-body font-medium flex items-center gap-3">
                   <User size={20} />
                   Profile Settings
-                </a>
-                <a href="#preferences" className="px-4 py-3 rounded-lg text-on-surface hover:bg-surface-container-low transition-colors font-body font-medium flex items-center gap-3">
-                  <SlidersHorizontal size={20} />
-                  App Preferences
-                </a>
-                <a href="#billing" className="px-4 py-3 rounded-lg text-on-surface hover:bg-surface-container-low transition-colors font-body font-medium flex items-center gap-3">
-                  <CreditCard size={20} />
-                  Subscription
-                </a>
-                <a href="#security" className="px-4 py-3 rounded-lg text-on-surface hover:bg-surface-container-low transition-colors font-body font-medium flex items-center gap-3">
-                  <Shield size={20} />
-                  Security
                 </a>
               </nav>
             </aside>
