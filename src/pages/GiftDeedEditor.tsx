@@ -31,7 +31,7 @@ function getSafeImageUrl(url?: string) {
 }
 
 // Define Cloudinary configuration
-const CLOUDINARY_CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || "dsyow3tjq"; // Replace with your actual Cloudinary cloud name
+const CLOUDINARY_CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || "dvzxfbcsd"; // Replace with your actual Cloudinary cloud name
 const CLOUDINARY_UPLOAD_PRESET = "notery"; // Replace with your actual Cloudinary upload preset
 
 function buildPreviewChunks<T extends { email?: string; phone?: string }>(persons: T[]) {
