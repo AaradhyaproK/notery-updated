@@ -5,7 +5,7 @@ import { BrandLockup } from "../BrandLockup";
 
 const DESKTOP_BREAKPOINT = 768;
 
-export function Layout({ children }: { ReactNode }) {
+export function Layout({ children }: { children: ReactNode }) {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isDesktop, setIsDesktop] = useState(() => typeof window !== "undefined" && window.innerWidth >= DESKTOP_BREAKPOINT);
   const [showSupportModal, setShowSupportModal] = useState(false); // State for the support modal

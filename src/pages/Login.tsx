@@ -33,7 +33,7 @@ export function Login() {
   };
 
   return (
-    <div className="flex min-h-dvh items-center justify-center bg-surface-container px-4 py-6 sm:px-6">
+    <div className="flex min-h-dvh flex-col items-center justify-center bg-surface-container px-4 py-6 sm:px-6">
       <div className="w-full max-w-[528px] rounded-lg border border-outline-variant/70 bg-surface-container-lowest px-8 py-12 shadow-[0_16px_48px_-32px_rgb(10_10_10_/_0.7)] sm:px-10 sm:py-16">
         <div className="mb-10 flex items-center justify-center gap-3 text-center">
           <BrandMark className="h-12 w-12 rounded-none bg-transparent ring-0 shadow-none" />
@@ -91,6 +91,12 @@ export function Login() {
           </button>
         </form>
       </div>
+
+        {/* Footer branding */}
+        <div className="mt-8 flex flex-col items-center gap-0.5 opacity-80">
+          <span className="font-body text-xs text-on-surface-variant tracking-wide">Created &amp; managed by</span>
+          <img src="/shelby-logo.png" alt="Shelby" className="h-12 -mt-2 object-contain" />
+        </div>
     </div>
   );
 }
