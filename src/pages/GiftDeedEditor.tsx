@@ -1252,7 +1252,9 @@ Contact Details : Mob. 8286000888 / 9933806888 | Email - advsameervispute@gmail.
             if (direction === 'prev' && currentPersonIndexInModal > 0) setCurrentPersonIndexInModal(prev => prev - 1);
             if (direction === 'next' && currentPersonIndexInModal < persons.length - 1) setCurrentPersonIndexInModal(prev => prev + 1);
           }}
-          onStartCapture={setActiveCapture}
+          onStartCapture={(personId, type) => setActiveCapture({ personId, type })}
+          onStartFingerprintScan={startFingerprintScan}
+          onHandleFileUpload={handleFileUpload}
           knownClients={knownClients}
           onAutofillPerson={autofillPerson}
         />

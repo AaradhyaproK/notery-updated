@@ -1,7 +1,5 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { X, Camera, Fingerprint, Plus, ChevronLeft, ChevronRight, Trash2, Save, AlertTriangle } from "lucide-react";
-import { db } from "../firebaseDb"; // Assuming db is accessible
-import { collection, query, orderBy, getDocs } from "firebase/firestore";
+import React, { useState, useMemo } from "react";
+import { X, Camera, Fingerprint, Plus, ChevronLeft, ChevronRight, Trash2, Save } from "lucide-react";
 
 // Re-use interfaces and utility functions from GiftDeedEditor.tsx
 interface Person {
@@ -59,6 +57,8 @@ interface PersonEditorModalProps {
   totalPersons: number;
   onNavigate: (direction: 'prev' | 'next') => void;
   onStartCapture: (personId: string, type: 'photo' | 'thumb') => void; // To trigger parent's webcam
+  onStartFingerprintScan: (personId: string) => void;
+  onHandleFileUpload: (personId: string, type: 'photo' | 'thumb', e: React.ChangeEvent<HTMLInputElement>) => void;
   knownClients: Person[]; // For autofill
   onAutofillPerson: (personId: string, clientData: Person) => void; // For autofill
 }
@@ -74,6 +74,8 @@ export function PersonEditorModal({
   totalPersons,
   onNavigate,
   onStartCapture,
+  onStartFingerprintScan,
+  onHandleFileUpload,
   knownClients,
   onAutofillPerson,
 }: PersonEditorModalProps) {
@@ -222,9 +224,15 @@ export function PersonEditorModal({
                     {person.photo && <img src={person.photo} alt="Photo" className="w-full h-full object-cover" />}
                     {!person.photo && <span className="text-on-surface-variant text-xs text-center p-2">No Photo Captured</span>}
                   </div>
-                  <button onClick={() => onStartCapture(person.id, 'photo')} className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 text-primary rounded hover:bg-primary/20 transition-colors font-medium text-xs">
-                    <Camera size={14} /> {person.photo ? 'Retake Photo' : 'Capture Photo'}
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => onStartCapture(person.id, 'photo')} className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 text-primary rounded hover:bg-primary/20 transition-colors font-medium text-xs">
+                      <Camera size={14} /> {person.photo ? 'Retake Photo' : 'Capture Photo'}
+                    </button>
+                    <label className="flex items-center gap-1.5 px-3 py-1.5 bg-surface-container-high text-on-surface-variant rounded hover:bg-surface-container-highest transition-colors cursor-pointer font-medium text-xs shadow-sm">
+                      Upload
+                      <input type="file" hidden accept="image/*" onChange={(e) => onHandleFileUpload(person.id, 'photo', e)} />
+                    </label>
+                  </div>
                 </div>
 
                 {/* Thumbprint Preview */}
@@ -233,9 +241,15 @@ export function PersonEditorModal({
                     {person.thumb && <img src={person.thumb} alt="Thumbprint" className="w-full h-full object-contain p-1" />}
                     {!person.thumb && <span className="text-on-surface-variant text-xs text-center p-2">No Thumb Scanned</span>}
                   </div>
-                  <button onClick={() => onStartCapture(person.id, 'thumb')} className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 text-primary rounded hover:bg-primary/20 transition-colors font-medium text-xs">
-                    <Fingerprint size={14} /> {person.thumb ? 'Rescan Thumb' : 'Scan Thumb'}
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => onStartFingerprintScan(person.id)} className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 text-primary rounded hover:bg-primary/20 transition-colors font-medium text-xs">
+                      <Fingerprint size={14} /> {person.thumb ? 'Rescan Thumb' : 'Scan Thumb'}
+                    </button>
+                    <label className="flex items-center gap-1.5 px-3 py-1.5 bg-surface-container-high text-on-surface-variant rounded hover:bg-surface-container-highest transition-colors cursor-pointer font-medium text-xs shadow-sm">
+                      Upload
+                      <input type="file" hidden accept="image/*" onChange={(e) => onHandleFileUpload(person.id, 'thumb', e)} />
+                    </label>
+                  </div>
                 </div>
               </div>
             </div>
