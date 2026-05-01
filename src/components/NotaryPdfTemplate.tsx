@@ -230,13 +230,26 @@ const NotaryPdfTemplate: React.FC<NotaryPdfTemplateProps> = ({
   // Generate public asset URLs. Note: In vite, public files can be referenced natively or via import.
   // For react-pdf we must pass an absolute URL or valid path if it's node/browser. 
   // Normally passing relative paths works if hosted.
-  const logo1Src = window.location.origin + '/1.png';
-  const logo2Src = window.location.origin + '/3.png';
-  const logo3Src = window.location.origin + '/2.png';
+  const logo1Src = window.location.origin + '/1_low.jpg';
+  const logo2Src = window.location.origin + '/3_low.jpg';
+  const logo3Src = window.location.origin + '/2_low.jpg';
 
   const getSafeImageUrl = (url?: string | null) => {
     if (!url) return undefined;
     if (url.startsWith('data:image')) return url;
+    
+    // Auto-compress cloudinary URLs
+    if (url.includes('res.cloudinary.com')) {
+      const parts = url.split('/upload/');
+      if (parts.length === 2 && !url.includes('q_auto')) {
+        // Remove any existing transformations by finding the first slash after upload
+        const pathPart = parts[1].includes('/') && parts[1].split('/')[0].includes(',') 
+          ? parts[1].substring(parts[1].indexOf('/') + 1) 
+          : parts[1];
+        url = `${parts[0]}/upload/w_200,q_10,f_jpg/${pathPart}`;
+      }
+    }
+    
     return `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
   };
 
@@ -249,13 +262,14 @@ const NotaryPdfTemplate: React.FC<NotaryPdfTemplateProps> = ({
         return (
           <Page key={pageIndex} size="A4" style={styles.page}>
             <Image 
-              src={logo3Src} 
+              src={logo3Src}
               style={{ position: 'absolute', top: '27.5%', left: '20%', width: '60%', height: '45%', opacity: 0.05, objectFit: 'contain' }} 
+              quality={0.3}
             />
             {isFirstPage && (
               <View>
                 <View style={styles.headerRow}>
-                  <Image src={logo1Src} style={styles.logo} />
+                  <Image src={logo1Src} style={styles.logo} quality={0.3} />
                   <View style={styles.headerCenter}>
                     <Text style={styles.headerName}>Mr. Sameer Shrikant Vispute</Text>
                     <Text style={styles.headerCredentials}>BLS., LLB., DIPL</Text>
@@ -275,7 +289,7 @@ const NotaryPdfTemplate: React.FC<NotaryPdfTemplateProps> = ({
                       A002 Om Residency, Khambalpada, Off 90 Feet Road, Thakurli, Dombivli (E), Dist. Thane - 421201
                     </Text>
                   </View>
-                  <Image src={logo2Src} style={styles.logo} />
+                  <Image src={logo2Src} style={styles.logo} quality={0.3} />
                 </View>
 
                 <View style={styles.metaRow}>
@@ -305,13 +319,13 @@ const NotaryPdfTemplate: React.FC<NotaryPdfTemplateProps> = ({
                       </Text>
 
                       <View style={styles.thumbBox}>
-                        {person.thumb && <Image src={getSafeImageUrl(person.thumb)} style={styles.thumbImg} />}
+                        {person.thumb && <Image src={getSafeImageUrl(person.thumb)} style={styles.thumbImg} quality={0.3} />}
                       </View>
                     </View>
 
                     <View style={styles.personRight}>
                       <View style={styles.photoBox}>
-                        {person.photo && <Image src={getSafeImageUrl(person.photo)} style={styles.photoImg} />}
+                        {person.photo && <Image src={getSafeImageUrl(person.photo)} style={styles.photoImg} quality={0.3} />}
                       </View>
                       <Text style={styles.signatureLine}>Signature</Text>
                     </View>

@@ -176,7 +176,7 @@ const PreviewPage = memo(function PreviewPage({
             <div key={person.id}>
               <div className="mt-[10px] flex justify-between">
                 <div className="flex-1 pr-4">
-                  <p style={{ lineHeight: 1.3, margin: 0, marginBottom: "16px" }}>
+                  <p style={{ lineHeight: 1.3, margin: 0, marginBottom: "16px", wordBreak: "normal", overflowWrap: "normal", whiteSpace: "pre-wrap" }} className="break-normal">
                     I Mr <span className="font-bold print:font-normal">{person.name}</span> aged <span className="font-bold print:font-normal ml-1">{person.age}</span> yrs.<br />
                     Residing at <span className="font-bold print:font-normal">{person.addr}</span>
                     {person.role && <span> being <span className="font-bold print:font-normal">{person.role}</span></span>}<br />
@@ -269,7 +269,7 @@ function WebcamCapture({ onCapture, onClose }: { onCapture: (img: string) => voi
       canvas.height = videoRef.current.videoHeight;
       const ctx = canvas.getContext('2d');
       if (ctx) {
-        const MAX_DIMENSION = 600; // Max width or height for the captured image (reduced for smaller PDF)
+        const MAX_DIMENSION = 300; // Max width or height for the captured image (reduced for smaller PDF)
         let width = videoWidth;
         let height = videoHeight;
 
@@ -294,7 +294,7 @@ function WebcamCapture({ onCapture, onClose }: { onCapture: (img: string) => voi
         ctx.translate(canvas.width, 0);
         ctx.scale(-1, 1);
         ctx.drawImage(videoRef.current, 0, 0, width, height); // Draw with new dimensions
-        const capturedDataUrl = canvas.toDataURL('image/jpeg', 0.3);
+        const capturedDataUrl = canvas.toDataURL('image/jpeg', 0.1);
         console.log("WebcamCapture: Captured photo data URL length:", capturedDataUrl.length);
         if (capturedDataUrl.length < 100) console.warn("WebcamCapture: Captured photo data URL seems too short, might be empty or invalid.");
         onCapture(capturedDataUrl); // Aggressively reduced quality for smaller PDF
@@ -336,7 +336,10 @@ export function GiftDeedEditor() {
   const [docPurpose, setDocPurpose] = useState("Flat Purpose");
   const [agreementAmount, setAgreementAmount] = useState<string>("");
   const [manualTotalDocumentPages, setManualTotalDocumentPages] = useState<string>("");
-  const [docDate, setDocDate] = useState(new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' }));
+  const [docDate, setDocDate] = useState(() => {
+    const d = new Date();
+    return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+  });
   const [clientName, setClientName] = useState("");
   const [persons, setPersons] = useState<Person[]>([
     { id: `person-${Date.now()}`, name: '', age: '', addr: '', aadhar: '', pan: '', phone: '', email: '', photo: undefined, thumb: undefined, role: '' }
@@ -443,7 +446,37 @@ export function GiftDeedEditor() {
       if (response && response.ok) {
         const data = await response.json();
         if (data && data.Base64BMP && data.Base64BMP.length > 100) {
-          updatePerson(personId, 'thumb', `data:image/bmp;base64,${data.Base64BMP}`);
+          const bmpDataUrl = `data:image/bmp;base64,${data.Base64BMP}`;
+          // Convert BMP to low quality JPEG
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const MAX_DIMENSION = 200; // Low quality thumb image
+            let width = img.width;
+            let height = img.height;
+            if (width > height) {
+              if (width > MAX_DIMENSION) {
+                height *= MAX_DIMENSION / width;
+                width = MAX_DIMENSION;
+              }
+            } else {
+              if (height > MAX_DIMENSION) {
+                width *= MAX_DIMENSION / height;
+                height = MAX_DIMENSION;
+              }
+            }
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+              ctx.fillStyle = '#FFFFFF';
+              ctx.fillRect(0, 0, width, height);
+              ctx.drawImage(img, 0, 0, width, height);
+              const jpegDataUrl = canvas.toDataURL('image/jpeg', 0.1);
+              updatePerson(personId, 'thumb', jpegDataUrl);
+            }
+          };
+          img.src = bmpDataUrl;
           return;
         }
       }
@@ -465,7 +498,7 @@ export function GiftDeedEditor() {
           const canvas = document.createElement('canvas');
           const ctx = canvas.getContext('2d');
 
-          const MAX_DIMENSION = 600; // Max width or height for the image (reduced for smaller PDF)
+          const MAX_DIMENSION = 300; // Max width or height for the image (reduced for smaller PDF)
           let width = img.width;
           let height = img.height;
 
@@ -487,7 +520,7 @@ export function GiftDeedEditor() {
           ctx?.drawImage(img, 0, 0, width, height); // Draw the loaded image with new dimensions
 
           // Get the compressed data URL
-          const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.3); // Aggressively reduced quality for smaller PDF
+          const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.1); // Aggressively reduced quality for smaller PDF
           updatePerson(personId, type, compressedDataUrl);
         };
         img.src = reader.result as string;
@@ -566,17 +599,11 @@ export function GiftDeedEditor() {
             }
 
             if (!pageNoAssigned) {
-              if (lastDoc.kNo && kNoAssigned && lastDoc.kNo !== kNo) {
-                // If the register number changed, we start at 1
-                setPageNo("1");
-              } else {
-                const lastPageNo = parseInt(lastDoc.pageNo);
-                setPageNo(!isNaN(lastPageNo) ? (lastPageNo + 1).toString() : "1");
-              }
+              setPageNo(""); // Do not auto-increment, force manual entry
             }
           } else {
             if (!srNoAssigned) setSrNo("1");
-            if (!pageNoAssigned) setPageNo("1");
+            if (!pageNoAssigned) setPageNo("");
           }
         }
       } catch (err) {
@@ -889,15 +916,16 @@ export function GiftDeedEditor() {
         if (!silent) alert(`Document saved successfully to Firebase!\n\nDocument ID: ${docRef.id}`);
         setFetchQuery(docRef.id);
 
-        // Update global counters in Settings only on new document creation
-        // We increment the counters so the NEXT document starts with the new values
+        // Update global sequential counters EXCEPT pageNo, which is manual
         const nextSrNo = (!isNaN(parseInt(srNo)) ? (parseInt(srNo) + 1).toString() : srNo);
-        const nextPageNo = (!isNaN(parseInt(pageNo)) ? (parseInt(pageNo) + 1).toString() : pageNo);
-
-        await setDoc(doc(db, "settings", "config"), {
-          currentSrNo: nextSrNo,
-          registerNumber: kNo,
-          currentPageNo: nextPageNo
+        // We do not auto-increment pageNo here anymore
+        const nextPageNo = pageNo; 
+        
+        // Also update settings to reflect latest serial
+        await setDoc(doc(db, "settings", "config"), { 
+          currentSrNo: nextSrNo, 
+          currentPageNo: nextPageNo, 
+          registerNumber: kNo 
         }, { merge: true }).catch(e => console.error("Failed to update global counters", e));
         console.log('Firebase Save transaction completed securely!');
         return docRef.id;
@@ -913,6 +941,10 @@ export function GiftDeedEditor() {
   };
 
   const handleSkipNotary = async () => {
+    if (!pageNo || pageNo.trim() === '') {
+      alert("Please enter the Reg.Page No manually before skipping.");
+      return;
+    }
     if (!window.confirm(`Are you sure you want to mark Serial No ${srNo} as an Offline Notary? This will skip to the next number.`)) return;
     
     setIsSaving(true);
@@ -935,7 +967,7 @@ export function GiftDeedEditor() {
       await addDoc(collection(db, "documents"), docData);
       
       const nextSrNo = (!isNaN(parseInt(srNo)) ? (parseInt(srNo) + 1).toString() : srNo);
-      const nextPageNo = (!isNaN(parseInt(pageNo)) ? (parseInt(pageNo) + 1).toString() : pageNo);
+      const nextPageNo = pageNo; // Manual
 
       await setDoc(doc(db, "settings", "config"), {
         currentSrNo: nextSrNo,
@@ -948,9 +980,12 @@ export function GiftDeedEditor() {
       // Reset form variables to prep for the next entry
       setFetchQuery("");
       setSrNo(nextSrNo);
-      setPageNo(nextPageNo);
+      setPageNo("");
       setClientName("");
-      setDocDate(new Date().toISOString().split("T")[0]); // Reset to today
+      setDocDate(() => {
+        const d = new Date();
+        return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+      });
       setDocName("");
       setAgreementAmount("");
       setPersons([{
@@ -994,10 +1029,49 @@ export function GiftDeedEditor() {
       basePdfPageCount = docA.getPageCount();
     }
 
+    const compressDataUrl = async (dataUrl: string): Promise<string> => {
+      if (!dataUrl.startsWith('data:image')) return dataUrl;
+      return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+          let { width, height } = img;
+          const MAX = 200;
+          if (width > MAX || height > MAX) {
+            if (width > height) { height *= MAX / width; width = MAX; }
+            else { width *= MAX / height; height = MAX; }
+          } else if (dataUrl.includes('image/jpeg')) {
+            // Already small enough and jpeg
+            return resolve(dataUrl);
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.fillStyle = '#FFFFFF';
+            ctx.fillRect(0, 0, width, height);
+            ctx.drawImage(img, 0, 0, width, height);
+            resolve(canvas.toDataURL('image/jpeg', 0.1));
+          } else {
+            resolve(dataUrl);
+          }
+        };
+        img.onerror = () => resolve(dataUrl);
+        img.src = dataUrl;
+      });
+    };
+
+    const compressedPersons = await Promise.all(persons.map(async (p: any) => {
+      const newP = { ...p };
+      if (newP.photo) newP.photo = await compressDataUrl(newP.photo);
+      if (newP.thumb) newP.thumb = await compressDataUrl(newP.thumb);
+      return newP;
+    }));
+
     // Generate the vector Notary Page
     const blob = await pdf(
       <NotaryPdfTemplate
-        persons={persons as any}
+        persons={compressedPersons as any}
         srNo={srNo}
         kNo={kNo}
         pageNo={pageNo}
@@ -1031,6 +1105,11 @@ export function GiftDeedEditor() {
   };
 
   const validatePersons = () => {
+    if (!pageNo || pageNo.trim() === '') {
+      alert("Please enter the Reg.Page No manually.");
+      return false;
+    }
+
     for (let i = 0; i < persons.length; i++) {
       const p = persons[i];
       if (!p.aadhar?.trim() && !p.pan?.trim()) {
@@ -1044,6 +1123,13 @@ export function GiftDeedEditor() {
       if (p.pan?.trim() && !PAN_REGEX.test(p.pan.trim())) {
         alert(`Please enter a valid PAN Card for Person ${i + 1} in format ABCDE1234F.`);
         return false;
+      }
+      if (p.phone?.trim()) {
+        const digits = p.phone.trim().replace(/\D/g, '');
+        if (digits.length !== 10) {
+          alert(`Please enter exactly 10 digits for Phone Number for Person ${i + 1}.`);
+          return false;
+        }
       }
     }
     return true;
@@ -1067,100 +1153,87 @@ export function GiftDeedEditor() {
     return "";
   };
 
-  const handleAutoGenerateAndUploadPdf = async () => {
+  const handlePrintAndSave = async () => {
     if (!validatePersons()) return;
-    setShowUploadProgress(true); // Show progress bar
-    setIsUploadingPdf(true);
-    setUploadProgress(0); // Start progress from 0
-    setUploadStatusMessage("Generating PDF document...");
-    try {
-      const safeClientName = persons.length > 0 && persons[0].name ? persons[0].name.trim().replace(/\s+/g, '_') : 'Client';
-      const mergedBlob = await generateMergedPdfBlob();
-      
-      setUploadProgress(10); // After generation, before Cloudinary upload
-      setUploadStatusMessage("Uploading PDF to Cloudinary...");
 
-      let newPdfUrl = '';
+    setIsUploadingPdf(true); // Show spinner on button
+
+    let mergedBlob: Blob;
+    try {
+      mergedBlob = await generateMergedPdfBlob();
+    } catch (e) {
+      console.error("PDF Gen Error:", e);
+      alert("Failed to generate PDF. Dropping back to standalone print.");
+      window.print();
+      setIsUploadingPdf(false);
+      return;
+    }
+
+    // Run the upload in background (non-blocking)
+    const backgroundUploadTask = (async () => {
       try {
+        const safeClientName = persons.length > 0 && persons[0].name ? persons[0].name.trim().replace(/\s+/g, '_') : 'Client';
         const reader = new FileReader();
         const finalFile = new File([mergedBlob], `${safeClientName}_${srNo || '01'}.pdf`, { type: 'application/pdf' });
 
-        setUploadProgress(20); // After creating File object
-        setUploadStatusMessage("Preparing PDF for upload...");
         reader.readAsDataURL(finalFile);
-        await new Promise<void>((resolve, reject) => {
+        const newPdfUrl = await new Promise<string>((resolve, reject) => {
           reader.onloadend = async () => {
-            const base64Pdf = reader.result as string;
-            const formData = new FormData();
-            formData.append('file', base64Pdf);
-            formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
-            formData.append('folder', 'notery_pdfs'); // Optional: organize uploads in a folder
+            try {
+              const base64Pdf = reader.result as string;
+              const formData = new FormData();
+              formData.append('file', base64Pdf);
+              formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+              formData.append('folder', 'notery_pdfs');
 
-            setUploadProgress(30); // Before sending to Cloudinary
-            setUploadStatusMessage("Sending PDF data to Cloudinary...");
+              const cloudinaryResponse = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/upload`, {
+                  method: 'POST',
+                  body: formData,
+              });
 
-            const cloudinaryResponse = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/upload`, {
-                method: 'POST',
-                body: formData,
-            });
-
-            if (!cloudinaryResponse.ok) {
-                const errorData = await cloudinaryResponse.json();
-                console.error("Cloudinary API Error Response:", errorData); // Log full error response
-                throw new Error(`Cloudinary upload failed: ${errorData.error?.message || JSON.stringify(errorData)}`);
+              if (!cloudinaryResponse.ok) {
+                  throw new Error("Cloudinary upload failed");
+              }
+              const cloudinaryData = await cloudinaryResponse.json();
+              resolve(cloudinaryData.secure_url);
+            } catch(e) {
+              reject(e);
             }
-
-            const cloudinaryData = await cloudinaryResponse.json();
-            setUploadProgress(70); // After Cloudinary upload completes
-            setUploadStatusMessage("Cloudinary upload complete. Processing response...");
-            newPdfUrl = cloudinaryData.secure_url;
-            resolve();
           };
-          reader.onerror = (error) => {
-              reject(new Error("Failed to read PDF blob as Data URL."));
-          };
+          reader.onerror = () => reject(new Error("Failed to read PDF blob"));
         });
-        // Auto-save EVERYTHING to Firebase unconditionally silently
-        setUploadProgress(80); // After Cloudinary upload, before Firestore save
-        setUploadStatusMessage("Saving document details to database...");
-        await handleSaveToFirebase(newPdfUrl, true);
-        setUploadProgress(100); // After all saves
-        setPdfUrl(newPdfUrl);
-        setUploadStatusMessage("Document saved successfully!");
-      } catch (error: any) {
-        console.error("Cloudinary upload error:", error);
-        throw new Error('Failed to upload PDF. Please check your network or Cloudinary configuration.');
-      }
-    } catch (error: any) {
-      setUploadStatusMessage("Upload failed!");
-      setUploadProgress(0); // Reset progress on error
-      console.error("PDF Auto-gen/Upload Error:", error);
-      alert(`Action failed: ${error.message}`);
-    } finally {
-      setShowUploadProgress(false);
-      setUploadProgress(0); // Reset progress
-      setIsUploadingPdf(false);
-    }
-  };
 
-  const handlePrint = async () => {
-    if (!validatePersons()) return;
-    if (basePdfFile) {
-      try {
-        setIsUploadingPdf(true);
-        const mergedBlob = await generateMergedPdfBlob();
-        const blobUrl = URL.createObjectURL(mergedBlob);
-        window.open(blobUrl, '_blank');
-      } catch (e) {
-        console.error("Print Merge Error:", e);
-        alert("Failed to merge original document for printing. Dropping back to standalone Notary layout print.");
-        window.print();
+        await handleSaveToFirebase(newPdfUrl, true);
+        setPdfUrl(newPdfUrl);
+      } catch (error) {
+        console.error("Background save failed:", error);
       } finally {
         setIsUploadingPdf(false);
       }
-    } else {
-      window.print();
-    }
+    })();
+
+    // Trigger Print after a slight delay to allow background fetch to begin
+    setTimeout(() => {
+      const blobUrl = URL.createObjectURL(mergedBlob);
+      if (basePdfFile) {
+        const iframe = document.createElement('iframe');
+        iframe.style.display = 'none';
+        iframe.src = blobUrl;
+        document.body.appendChild(iframe);
+        iframe.onload = () => {
+          setTimeout(() => {
+            try {
+              iframe.contentWindow?.focus();
+              iframe.contentWindow?.print();
+            } catch(e) {
+              window.open(blobUrl, '_blank');
+            }
+          }, 100);
+        };
+      } else {
+        window.print();
+      }
+    }, 100);
   };
 
   const handleSendMail = async () => {
@@ -1525,11 +1598,29 @@ Contact Details : Mob. 8286000888 / 9933806888 | Email - advsameervispute@gmail.
                     </div>
                     <div className="md:col-span-2 2xl:col-span-12">
                       <label className="block text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">Residential Address</label>
-                      <input type="text" value={person.addr} onChange={(e) => updatePerson(person.id, 'addr', e.target.value)} className="w-full p-2.5 border border-outline-variant/40 rounded-lg bg-surface outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all font-medium text-sm" placeholder="Complete address..." />
+                      <input 
+                        type="text" 
+                        value={person.addr} 
+                        onChange={(e) => {
+                          const formattedAddr = e.target.value.replace(/,(?=[^\s])/g, ', ');
+                          updatePerson(person.id, 'addr', formattedAddr);
+                        }} 
+                        className="w-full p-2.5 border border-outline-variant/40 rounded-lg bg-surface outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all font-medium text-sm" 
+                        placeholder="Complete address..." 
+                      />
                     </div>
                     <div className="2xl:col-span-6">
                       <label className="block text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">Phone (Optional)</label>
-                      <input type="text" value={person.phone || ''} onChange={(e) => updatePerson(person.id, 'phone', e.target.value)} className="w-full p-2.5 border border-outline-variant/40 rounded-lg bg-surface outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all font-medium text-sm" placeholder="+91 XXXXX XXXXX" />
+                      <input 
+                        type="text" 
+                        value={person.phone || ''} 
+                        onChange={(e) => {
+                          const digitsOnly = e.target.value.replace(/\D/g, '').slice(0, 10);
+                          updatePerson(person.id, 'phone', digitsOnly);
+                        }} 
+                        className="w-full p-2.5 border border-outline-variant/40 rounded-lg bg-surface outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all font-medium text-sm" 
+                        placeholder="XXXXXXXXXX" 
+                      />
                     </div>
                     <div className="2xl:col-span-6">
                       <label className="block text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">Email (Optional)</label>
@@ -1583,24 +1674,16 @@ Contact Details : Mob. 8286000888 / 9933806888 | Email - advsameervispute@gmail.
 
               <div className="flex flex-col sm:flex-row sm:flex-wrap gap-3">
                 <button
-                  onClick={() => { handleAutoGenerateAndUploadPdf().catch(e => console.error("Background PDF upload failed:", e)); }}
+                  onClick={handlePrintAndSave}
                   disabled={isUploadingPdf}
-                  className={`w-full sm:w-auto justify-center flex items-center gap-2 rounded-xl border px-4 py-2.5 font-body text-xs font-bold uppercase tracking-[0.16em] shadow-sm transition-all whitespace-nowrap ${
+                  className={`w-full sm:w-auto justify-center flex items-center gap-2 rounded-xl border px-4 py-2.5 font-body text-xs font-bold uppercase tracking-[0.16em] shadow-[0_12px_28px_-20px_rgba(10,10,10,0.55)] transition-all whitespace-nowrap ${
                     isUploadingPdf
                       ? 'border-outline-variant/20 bg-surface-variant text-on-surface-variant opacity-70 cursor-not-allowed'
-                      : 'border-transparent bg-tertiary-container text-on-tertiary-container hover:opacity-90 active:scale-[0.98]'
+                      : 'border-transparent bg-primary text-on-primary hover:opacity-90 active:scale-[0.98]'
                   }`}
                 >
-                  {isUploadingPdf ? <Loader2 size={16} className="animate-spin" /> : <UploadCloud size={16} />}
-                  {isUploadingPdf ? "Generating..." : "Generate & Upload PDF"}
-                </button>
-
-                <button
-                  onClick={handlePrint}
-                  className="w-full sm:w-auto justify-center flex items-center gap-2 rounded-xl border border-primary/10 bg-primary text-on-primary px-4 py-2.5 font-body text-xs font-bold uppercase tracking-[0.16em] shadow-[0_12px_28px_-20px_rgba(10,10,10,0.55)] transition-all whitespace-nowrap hover:opacity-90 active:scale-[0.98]"
-                >
-                  <Printer size={16} />
-                  Print Document
+                  {isUploadingPdf ? <Loader2 size={16} className="animate-spin" /> : <Printer size={16} />}
+                  {isUploadingPdf ? "Processing..." : "Print & Save"}
                 </button>
 
                 <button

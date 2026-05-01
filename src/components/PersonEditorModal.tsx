@@ -202,12 +202,38 @@ export function PersonEditorModal({
 
             <div className="md:col-span-2">
               <label className="block text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">Residential Address</label>
-              <input type="text" value={person.addr} onChange={(e) => onUpdatePerson(person.id, 'addr', e.target.value)} className="w-full p-2.5 border border-outline-variant/40 rounded-lg bg-surface outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all font-medium text-sm" placeholder="Complete address..." />
+              <input 
+                type="text" 
+                value={person.addr} 
+                onChange={(e) => {
+                  // Ensure space after comma for proper word wrapping
+                  const formattedAddr = e.target.value.replace(/,(?=[^\s])/g, ', ');
+                  onUpdatePerson(person.id, 'addr', formattedAddr);
+                }} 
+                className="w-full p-2.5 border border-outline-variant/40 rounded-lg bg-surface outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all font-medium text-sm" 
+                placeholder="Complete address..." 
+              />
             </div>
 
             <div>
               <label className="block text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">Phone (Optional)</label>
-              <input type="text" value={person.phone || ''} onChange={(e) => onUpdatePerson(person.id, 'phone', e.target.value)} className="w-full p-2.5 border border-outline-variant/40 rounded-lg bg-surface outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all font-medium text-sm" placeholder="+91 XXXXX XXXXX" />
+              <input 
+                type="text" 
+                value={person.phone || ''} 
+                onChange={(e) => {
+                  const digitsOnly = e.target.value.replace(/\D/g, '').slice(0, 10);
+                  onUpdatePerson(person.id, 'phone', digitsOnly);
+                }} 
+                className={`w-full p-2.5 border rounded-lg bg-surface outline-none transition-all font-medium text-sm ${
+                  person.phone?.trim() && person.phone.replace(/\D/g, '').length !== 10
+                    ? 'border-error text-error focus:ring-2 focus:ring-error/20 focus:border-error'
+                    : 'border-outline-variant/40 focus:ring-2 focus:ring-primary/20 focus:border-primary/50'
+                }`} 
+                placeholder="XXXXXXXXXX" 
+              />
+              {person.phone?.trim() && person.phone.replace(/\D/g, '').length !== 10 && (
+                <p className="mt-1 text-[11px] font-medium text-error">Must be exactly 10 digits.</p>
+              )}
             </div>
 
             <div>
