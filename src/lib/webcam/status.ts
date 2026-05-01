@@ -4,6 +4,8 @@ export type WebcamPreviewStatus = {
   details?: string;
 };
 
+export const WEBCAM_PREVIEW_TIMEOUT_MS = 15000;
+
 export function buildWebcamSuccessStatus(deviceLabel?: string): WebcamPreviewStatus {
   const normalizedLabel = deviceLabel?.trim();
 
@@ -19,6 +21,14 @@ export function buildWebcamUnsupportedStatus(): WebcamPreviewStatus {
     stage: "error",
     message: "This browser session cannot access a webcam preview.",
     details: "The required navigator.mediaDevices camera APIs are not available in this environment.",
+  };
+}
+
+export function buildWebcamAutoStopStatus(durationSeconds: number): WebcamPreviewStatus {
+  return {
+    stage: "idle",
+    message: `Preview stopped automatically after ${durationSeconds} seconds.`,
+    details: "The camera is ready. Start the preview again anytime if you want to recheck it.",
   };
 }
 

@@ -2,9 +2,11 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  buildWebcamAutoStopStatus,
   buildWebcamErrorStatus,
   buildWebcamSuccessStatus,
   buildWebcamUnsupportedStatus,
+  WEBCAM_PREVIEW_TIMEOUT_MS,
 } from "./status";
 
 test("buildWebcamSuccessStatus confirms the camera is working", () => {
@@ -40,4 +42,16 @@ test("buildWebcamErrorStatus explains when no camera is available", () => {
 
   assert.equal(status.stage, "error");
   assert.equal(status.message, "No video camera was found on this device.");
+});
+
+test("webcam preview timeout uses a fixed 15 second window", () => {
+  assert.equal(WEBCAM_PREVIEW_TIMEOUT_MS, 15000);
+});
+
+test("buildWebcamAutoStopStatus explains the automatic stop after the quick check", () => {
+  const status = buildWebcamAutoStopStatus(15);
+
+  assert.equal(status.stage, "idle");
+  assert.equal(status.message, "Preview stopped automatically after 15 seconds.");
+  assert.match(status.details ?? "", /camera is ready/i);
 });

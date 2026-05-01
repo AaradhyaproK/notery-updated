@@ -16,9 +16,11 @@ import {
 } from "../lib/fingerprint/capture";
 import type { FingerprintConfig } from "../lib/fingerprint/types";
 import {
+  buildWebcamAutoStopStatus,
   buildWebcamErrorStatus,
   buildWebcamSuccessStatus,
   buildWebcamUnsupportedStatus,
+  WEBCAM_PREVIEW_TIMEOUT_MS,
   type WebcamPreviewStatus,
 } from "../lib/webcam/status";
 
@@ -40,6 +42,7 @@ export function Settings() {
   const webcamVideoRef = useRef<HTMLVideoElement>(null);
   const webcamStreamRef = useRef<MediaStream | null>(null);
   const webcamRequestIdRef = useRef(0);
+  const webcamAutoStopTimeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
     const savedLicense = localStorage.getItem("notaryLicenseNumber");
@@ -73,8 +76,16 @@ export function Settings() {
     }
   };
 
+  const clearWebcamAutoStopTimeout = () => {
+    if (webcamAutoStopTimeoutRef.current !== null) {
+      window.clearTimeout(webcamAutoStopTimeoutRef.current);
+      webcamAutoStopTimeoutRef.current = null;
+    }
+  };
+
   useEffect(() => () => {
     webcamRequestIdRef.current += 1;
+    clearWebcamAutoStopTimeout();
     stopWebcamStream();
   }, []);
 
@@ -147,7 +158,10 @@ export function Settings() {
 
   const handleTestWebcam = async () => {
     if (!navigator.mediaDevices?.getUserMedia) {
+      clearWebcamAutoStopTimeout();
+      stopWebcamStream();
       setWebcamStatus(buildWebcamUnsupportedStatus());
+      setIsTestingWebcam(false);
       setIsWebcamPreviewActive(false);
       return;
     }
@@ -159,6 +173,7 @@ export function Settings() {
       details: "Allow camera permission if the browser asks for it.",
     });
 
+    clearWebcamAutoStopTimeout();
     stopWebcamStream();
     setIsWebcamPreviewActive(false);
     const requestId = webcamRequestIdRef.current + 1;
@@ -188,11 +203,16 @@ export function Settings() {
 
       setIsWebcamPreviewActive(true);
       setWebcamStatus(buildWebcamSuccessStatus(stream.getVideoTracks()[0]?.label));
+      clearWebcamAutoStopTimeout();
+      webcamAutoStopTimeoutRef.current = window.setTimeout(() => {
+        handleStopWebcam("auto");
+      }, WEBCAM_PREVIEW_TIMEOUT_MS);
     } catch (error) {
       if (requestId !== webcamRequestIdRef.current) {
         return;
       }
 
+      clearWebcamAutoStopTimeout();
       stopWebcamStream();
       setWebcamStatus(buildWebcamErrorStatus(error));
     } finally {
@@ -202,16 +222,21 @@ export function Settings() {
     }
   };
 
-  const handleStopWebcam = () => {
+  const handleStopWebcam = (reason: "manual" | "auto" = "manual") => {
     webcamRequestIdRef.current += 1;
+    clearWebcamAutoStopTimeout();
     stopWebcamStream();
     setIsTestingWebcam(false);
     setIsWebcamPreviewActive(false);
-    setWebcamStatus({
-      stage: "idle",
-      message: "Preview stopped.",
-      details: "Start the preview again whenever you want to confirm the camera is working.",
-    });
+    setWebcamStatus(
+      reason === "auto"
+        ? buildWebcamAutoStopStatus(WEBCAM_PREVIEW_TIMEOUT_MS / 1000)
+        : {
+            stage: "idle",
+            message: "Preview stopped.",
+            details: "Start the preview again whenever you want to confirm the camera is working.",
+          },
+    );
   };
 
   const webcamStatusClasses =
@@ -548,7 +573,7 @@ export function Settings() {
                       <div className="rounded-2xl border border-outline-variant/15 bg-surface-container-low p-4">
                         <p className="text-sm font-medium text-on-surface">How to verify</p>
                         <p className="mt-2 text-xs leading-6 text-on-surface-variant">
-                          Start Preview. If the small live video appears and the status says the camera is working, the webcam is ready for use in this browser.
+                          Start Preview. If the small live video appears and the status says the camera is working, the webcam is ready for use in this browser. The preview stops automatically after 15 seconds.
                         </p>
                       </div>
 
