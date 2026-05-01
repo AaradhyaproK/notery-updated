@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import { buildFingerprintConfig } from "./config";
 import {
   buildPidOptionsXml,
+  isPidDeviceNotReady,
   parsePidCaptureResponse,
   parseLegacyPreviewResponse,
 } from "./pid";
@@ -65,12 +66,50 @@ test("parsePidCaptureResponse returns failure details for RD errors", () => {
   assert.equal(parsed.errInfo, "Device not ready");
 });
 
+test("isPidDeviceNotReady recognizes the RD Device NOT READY response", () => {
+  const parsed = parsePidCaptureResponse([
+    "<PidData>",
+    '<Resp errCode="720" errInfo="Device NOT READY" fCount="0" qScore="0" />',
+    "</PidData>",
+  ].join(""));
+
+  assert.equal(isPidDeviceNotReady(parsed), true);
+});
+
+test("isPidDeviceNotReady does not hide unrelated RD failures", () => {
+  const parsed = parsePidCaptureResponse([
+    "<PidData>",
+    '<Resp errCode="710" errInfo="Invalid PidOptions" fCount="0" qScore="0" />',
+    "</PidData>",
+  ].join(""));
+
+  assert.equal(isPidDeviceNotReady(parsed), false);
+});
+
 test("parseLegacyPreviewResponse creates a printable data URL for BMP payloads", () => {
   const preview = parseLegacyPreviewResponse({
     Base64BMP: "Qk0xMjM0",
   });
 
   assert.equal(preview, "data:image/bmp;base64,Qk0xMjM0");
+});
+
+test("parseLegacyPreviewResponse accepts Mantra BitmapData payloads", () => {
+  const preview = parseLegacyPreviewResponse({
+    BitmapData: "iVBORw0KGgo=",
+  });
+
+  assert.equal(preview, "data:image/png;base64,iVBORw0KGgo=");
+});
+
+test("parseLegacyPreviewResponse accepts nested Mantra data payloads", () => {
+  const preview = parseLegacyPreviewResponse({
+    data: {
+      BitmapData: "iVBORw0KGgo=",
+    },
+  });
+
+  assert.equal(preview, "data:image/png;base64,iVBORw0KGgo=");
 });
 
 test("parseLegacyPreviewResponse ignores empty preview payloads", () => {

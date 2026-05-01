@@ -487,7 +487,7 @@ export function GiftDeedEditor() {
           deviceInfo: result.deviceInfo,
           backendAccepted: result.backendAccepted,
           backendMessage: result.backendMessage,
-          pidXml: result.pidXml,
+          pidXml: result.pidXml ?? undefined,
           serviceUrl: result.serviceUrl,
         },
       }));

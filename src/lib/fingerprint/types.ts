@@ -23,6 +23,7 @@ export interface FingerprintConfig {
   backendEndpoint: string;
   enablePreviewImage: boolean;
   previewStrategy: FingerprintPreviewStrategy;
+  legacyPreviewHosts: string[];
   legacyPreviewPorts: number[];
   legacyPreviewDevicePaths: string[];
   requireBrowserBridge: boolean;

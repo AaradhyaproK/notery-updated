@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit",
-    "test": "tsx --test src/lib/fingerprint/config.test.ts src/lib/fingerprint/pid.test.ts src/lib/webcam/status.test.ts"
+    "test": "tsx --test src/lib/fingerprint/config.test.ts src/lib/fingerprint/pid.test.ts src/lib/fingerprint/capture.test.ts src/lib/webcam/status.test.ts"
   },
   "dependencies": {
     "@google/genai": "^1.29.0",

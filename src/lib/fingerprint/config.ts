@@ -21,6 +21,7 @@ const DEFAULT_FINGERPRINT_CONFIG: FingerprintConfig = {
   backendEndpoint: "/api/fingerprint/capture",
   enablePreviewImage: true,
   previewStrategy: "legacyMantra",
+  legacyPreviewHosts: ["127.0.0.1", "localhost"],
   legacyPreviewPorts: [8000, 8001, 8002, 8003, 8004, 8005],
   legacyPreviewDevicePaths: ["mfs100", "mfs110"],
   requireBrowserBridge: true,
@@ -30,6 +31,7 @@ export function buildFingerprintConfig(overrides: Partial<FingerprintConfig> = {
   return {
     ...DEFAULT_FINGERPRINT_CONFIG,
     ...overrides,
+    legacyPreviewHosts: overrides.legacyPreviewHosts ?? DEFAULT_FINGERPRINT_CONFIG.legacyPreviewHosts,
     legacyPreviewPorts: overrides.legacyPreviewPorts ?? DEFAULT_FINGERPRINT_CONFIG.legacyPreviewPorts,
     legacyPreviewDevicePaths:
       overrides.legacyPreviewDevicePaths ?? DEFAULT_FINGERPRINT_CONFIG.legacyPreviewDevicePaths,
@@ -46,6 +48,29 @@ export function getRdServiceCandidates(config: FingerprintConfig): string[] {
   }
 
   return [config.rdSecureBaseUrl, config.rdBaseUrl];
+}
+
+export function getLegacyPreviewCandidates(config: FingerprintConfig): string[] {
+  const protocols =
+    config.transport === "https"
+      ? ["https"]
+      : config.transport === "http"
+        ? ["http"]
+        : ["https", "http"];
+
+  const candidates: string[] = [];
+
+  for (const protocol of protocols) {
+    for (const port of config.legacyPreviewPorts) {
+      for (const host of config.legacyPreviewHosts) {
+        for (const devicePath of config.legacyPreviewDevicePaths) {
+          candidates.push(`${protocol}://${host}:${port}/${devicePath}`);
+        }
+      }
+    }
+  }
+
+  return candidates;
 }
 
 export function loadFingerprintConfig(): FingerprintConfig {

@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 import {
   buildFingerprintConfig,
+  getLegacyPreviewCandidates,
   getRdServiceCandidates,
 } from "./config";
 
@@ -21,6 +22,7 @@ test("buildFingerprintConfig applies stable defaults for Mantra MFS110", () => {
   assert.equal(config.enablePreviewImage, true);
   assert.deepEqual(config.legacyPreviewPorts, [8000, 8001, 8002, 8003, 8004, 8005]);
   assert.deepEqual(config.legacyPreviewDevicePaths, ["mfs100", "mfs110"]);
+  assert.deepEqual(config.legacyPreviewHosts, ["127.0.0.1", "localhost"]);
 });
 
 test("buildFingerprintConfig preserves overrides without dropping defaults", () => {
@@ -53,4 +55,18 @@ test("getRdServiceCandidates respects forced transport mode", () => {
 
   assert.deepEqual(getRdServiceCandidates(secureOnly), ["https://127.0.0.1:11100"]);
   assert.deepEqual(getRdServiceCandidates(httpOnly), ["http://127.0.0.1:11100"]);
+});
+
+test("getLegacyPreviewCandidates tries secure loopback endpoints first for hosted HTTPS apps", () => {
+  const config = buildFingerprintConfig({
+    legacyPreviewPorts: [8004],
+    legacyPreviewDevicePaths: ["mfs100"],
+  });
+
+  assert.deepEqual(getLegacyPreviewCandidates(config), [
+    "https://127.0.0.1:8004/mfs100",
+    "https://localhost:8004/mfs100",
+    "http://127.0.0.1:8004/mfs100",
+    "http://localhost:8004/mfs100",
+  ]);
 });

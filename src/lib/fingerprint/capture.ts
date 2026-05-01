@@ -1,5 +1,10 @@
-import { buildPidOptionsXml, parseLegacyPreviewResponse, parsePidCaptureResponse } from "./pid";
-import { getRdServiceCandidates } from "./config";
+import {
+  buildPidOptionsXml,
+  isPidDeviceNotReady,
+  parseLegacyPreviewResponse,
+  parsePidCaptureResponse,
+} from "./pid";
+import { getLegacyPreviewCandidates, getRdServiceCandidates } from "./config";
 import type { FingerprintConfig, FingerprintDeviceInfo, ParsedPidCaptureResponse } from "./types";
 
 export type FingerprintCaptureStage =
@@ -17,8 +22,8 @@ export interface FingerprintCaptureStatus {
 }
 
 export interface FingerprintCaptureResult {
-  pidXml: string;
-  parsedPid: ParsedPidCaptureResponse;
+  pidXml: string | null;
+  parsedPid: ParsedPidCaptureResponse | null;
   thumbImageDataUrl: string | null;
   deviceInfo?: FingerprintDeviceInfo;
   serviceUrl: string;
@@ -82,6 +87,74 @@ function buildDeviceErrorMessage(error: unknown, attemptedUrl: string, config: F
   return `${fallback} ${message}`;
 }
 
+export function buildPidCaptureRequestInits(pidOptionsXml: string): RequestInit[] {
+  const acceptHeader = "application/xml, text/xml, text/plain, */*";
+
+  return [
+    {
+      method: "POST",
+      headers: {
+        Accept: acceptHeader,
+      },
+      body: pidOptionsXml,
+    },
+    {
+      method: "POST",
+      headers: {
+        Accept: acceptHeader,
+        "Content-Type": "text/plain",
+      },
+      body: pidOptionsXml,
+    },
+    {
+      method: "POST",
+      headers: {
+        Accept: acceptHeader,
+        "Content-Type": "text/xml; charset=utf-8",
+      },
+      body: pidOptionsXml,
+    },
+    {
+      method: "CAPTURE",
+      headers: {
+        Accept: acceptHeader,
+        "Content-Type": "text/xml; charset=utf-8",
+      },
+      body: pidOptionsXml,
+    },
+  ];
+}
+
+export function buildLegacyPreviewRequestInits(config: FingerprintConfig): RequestInit[] {
+  const previewRequest = {
+    Quality: 60,
+    TimeOut: Math.max(10, Math.ceil(config.captureTimeoutMs / 1000)),
+  };
+  const previewPayloads = [
+    JSON.stringify(previewRequest),
+    JSON.stringify({ data: JSON.stringify(previewRequest) }),
+  ];
+  const acceptHeader = "application/json, text/plain, */*";
+
+  return [
+    ...previewPayloads.map((body) => ({
+      method: "POST",
+      headers: {
+        Accept: acceptHeader,
+      },
+      body,
+    })),
+    ...previewPayloads.map((body) => ({
+      method: "POST",
+      headers: {
+        Accept: acceptHeader,
+        "Content-Type": "application/json",
+      },
+      body,
+    })),
+  ];
+}
+
 async function tryDeviceInfo(url: string, config: FingerprintConfig) {
   const infoUrl = `${url}${config.rdInfoPath}`;
   const methods = ["GET", "DEVICEINFO"];
@@ -138,21 +211,13 @@ export async function discoverRdService(config: FingerprintConfig): Promise<Disc
 async function capturePidData(baseUrl: string, config: FingerprintConfig) {
   const captureUrl = `${baseUrl}${config.rdCapturePath}`;
   const pidOptionsXml = buildPidOptionsXml(config);
-  const methods = ["CAPTURE", "POST"];
   let lastError: unknown;
 
-  for (const method of methods) {
+  for (const requestInit of buildPidCaptureRequestInits(pidOptionsXml)) {
     try {
       const response = await fetchWithTimeout(
         captureUrl,
-        {
-          method,
-          headers: {
-            Accept: "application/xml, text/xml, text/plain, */*",
-            "Content-Type": "text/xml; charset=utf-8",
-          },
-          body: pidOptionsXml,
-        },
+        requestInit,
         config.captureTimeoutMs + 5000,
       );
 
@@ -214,39 +279,31 @@ async function captureLegacyPreview(config: FingerprintConfig) {
     return null;
   }
 
-  for (const port of config.legacyPreviewPorts) {
-    for (const devicePath of config.legacyPreviewDevicePaths) {
-      const baseUrl = `http://127.0.0.1:${port}/${devicePath}`;
-
-      try {
-        const infoResponse = await fetchWithTimeout(
-          `${baseUrl}/info`,
-          {
-            method: "GET",
-            headers: {
-              Accept: "application/json, text/plain, */*",
-            },
+  for (const baseUrl of getLegacyPreviewCandidates(config)) {
+    try {
+      const infoResponse = await fetchWithTimeout(
+        `${baseUrl}/info`,
+        {
+          method: "GET",
+          headers: {
+            Accept: "application/json, text/plain, */*",
           },
-          500,
-        );
+        },
+        500,
+      );
 
-        if (!infoResponse.ok) {
-          continue;
-        }
+      if (!infoResponse.ok) {
+        continue;
+      }
+    } catch {
+      continue;
+    }
 
+    for (const requestInit of buildLegacyPreviewRequestInits(config)) {
+      try {
         const captureResponse = await fetchWithTimeout(
           `${baseUrl}/capture`,
-          {
-            method: "POST",
-            headers: {
-              Accept: "application/json, text/plain, */*",
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              Quality: 60,
-              TimeOut: Math.max(10, Math.ceil(config.captureTimeoutMs / 1000)),
-            }),
-          },
+          requestInit,
           config.captureTimeoutMs + 2000,
         );
 
@@ -341,40 +398,63 @@ export async function captureFingerprintFromScanner({
   emitStatus(
     onStatus,
     "waiting-for-finger",
-    "Device found. Keep your finger on the scanner until capture completes.",
+    "Device found. Place the finger on the scanner and wait for capture.",
     discovered.baseUrl,
   );
 
-  const parsedPid = await capturePidData(discovered.baseUrl, config);
-  if (!parsedPid.ok) {
-    throw new Error(parsedPid.errInfo || "Fingerprint capture failed.");
+  const thumbImageDataUrl = await captureLegacyPreview(config);
+  let parsedPid: ParsedPidCaptureResponse | null = null;
+  let pidWarning: string | undefined;
+
+  try {
+    parsedPid = await capturePidData(discovered.baseUrl, config);
+    if (!parsedPid.ok) {
+      if (thumbImageDataUrl && isPidDeviceNotReady(parsedPid)) {
+        pidWarning = parsedPid.errInfo;
+      } else {
+        throw new Error(parsedPid.errInfo || "Fingerprint capture failed.");
+      }
+    }
+  } catch (error) {
+    if (!thumbImageDataUrl) {
+      throw error;
+    }
+
+    pidWarning = error instanceof Error && error.message ? error.message : "PID capture was not completed.";
   }
 
-  const thumbImageDataUrl = await captureLegacyPreview(config);
+  if (!thumbImageDataUrl) {
+    throw new Error("Fingerprint image was not returned by the scanner. Please keep the finger steady and try again.");
+  }
 
-  emitStatus(onStatus, "submitting", "Fingerprint captured. Sending PID data to the app server...");
-  const backendResult = await submitPidToBackend(config, {
-    personId,
-    documentId,
-    pidXml: parsedPid.pidXml,
-    serviceUrl: discovered.baseUrl,
-    deviceInfo: parsedPid.deviceInfo,
-  });
+  emitStatus(onStatus, "submitting", "Fingerprint image captured. Finishing document update...");
+  const backendResult = parsedPid?.ok
+    ? await submitPidToBackend(config, {
+        personId,
+        documentId,
+        pidXml: parsedPid.pidXml,
+        serviceUrl: discovered.baseUrl,
+        deviceInfo: parsedPid.deviceInfo,
+      })
+    : {
+        accepted: false,
+        message: pidWarning
+          ? `Printable thumb captured. PID handoff skipped: ${pidWarning}`
+          : "Printable thumb captured. PID handoff skipped.",
+      };
 
   emitStatus(
     onStatus,
     "success",
-    thumbImageDataUrl
-      ? "Fingerprint captured successfully."
-      : "Fingerprint captured successfully. PID XML is ready, but printable thumb preview was not returned by the device.",
+    "Fingerprint captured and added to the document.",
     backendResult.message,
   );
 
   return {
-    pidXml: parsedPid.pidXml,
+    pidXml: parsedPid?.pidXml ?? null,
     parsedPid,
     thumbImageDataUrl,
-    deviceInfo: parsedPid.deviceInfo,
+    deviceInfo: parsedPid?.deviceInfo,
     serviceUrl: discovered.baseUrl,
     backendAccepted: backendResult.accepted,
     backendMessage: backendResult.message,

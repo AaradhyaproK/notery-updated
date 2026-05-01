@@ -78,12 +78,30 @@ export function parsePidCaptureResponse(pidXml: string): ParsedPidCaptureRespons
   };
 }
 
-export function parseLegacyPreviewResponse(payload: Record<string, unknown>) {
-  const base64Bmp = typeof payload.Base64BMP === "string" ? payload.Base64BMP.trim() : "";
+export function isPidDeviceNotReady(parsed: ParsedPidCaptureResponse) {
+  return !parsed.ok && /device\s+not\s+ready/i.test(parsed.errInfo);
+}
 
-  if (!base64Bmp) {
-    return null;
+export function parseLegacyPreviewResponse(payload: Record<string, unknown>) {
+  const nestedPayload =
+    payload.data && typeof payload.data === "object" && !Array.isArray(payload.data)
+      ? payload.data as Record<string, unknown>
+      : payload;
+
+  const base64Bmp = typeof nestedPayload.Base64BMP === "string" ? nestedPayload.Base64BMP.trim() : "";
+  if (base64Bmp) {
+    return `data:image/bmp;base64,${base64Bmp}`;
   }
 
-  return `data:image/bmp;base64,${base64Bmp}`;
+  const bitmapData = typeof nestedPayload.BitmapData === "string" ? nestedPayload.BitmapData.trim() : "";
+  if (bitmapData) {
+    return `data:image/png;base64,${bitmapData}`;
+  }
+
+  const base64Bitmap = typeof nestedPayload.Base64Bitmap === "string" ? nestedPayload.Base64Bitmap.trim() : "";
+  if (base64Bitmap) {
+    return `data:image/png;base64,${base64Bitmap}`;
+  }
+
+  return null;
 }
