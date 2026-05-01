@@ -1,7 +1,7 @@
 import { Layout } from "../components/layout/Layout";
-import { User, Info, Fingerprint, Loader2, RotateCcw } from "lucide-react";
+import { User, Info, Fingerprint, Loader2, RotateCcw, Camera } from "lucide-react";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { db } from "../firebaseDb";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { FingerprintStatusPanel } from "../components/FingerprintStatusPanel";
@@ -15,6 +15,12 @@ import {
   type FingerprintCaptureStatus,
 } from "../lib/fingerprint/capture";
 import type { FingerprintConfig } from "../lib/fingerprint/types";
+import {
+  buildWebcamErrorStatus,
+  buildWebcamSuccessStatus,
+  buildWebcamUnsupportedStatus,
+  type WebcamPreviewStatus,
+} from "../lib/webcam/status";
 
 export function Settings() {
   const [licenseNumber, setLicenseNumber] = useState("NX-2023-8941");
@@ -24,6 +30,16 @@ export function Settings() {
   const [fingerprintConfig, setFingerprintConfig] = useState<FingerprintConfig>(() => loadFingerprintConfig());
   const [fingerprintStatus, setFingerprintStatus] = useState<FingerprintCaptureStatus | null>(null);
   const [isTestingFingerprint, setIsTestingFingerprint] = useState(false);
+  const [webcamStatus, setWebcamStatus] = useState<WebcamPreviewStatus>({
+    stage: "idle",
+    message: "Start the preview to confirm the video camera is working on this computer.",
+    details: "The preview runs only in this browser tab and does not save any photo.",
+  });
+  const [isTestingWebcam, setIsTestingWebcam] = useState(false);
+  const [isWebcamPreviewActive, setIsWebcamPreviewActive] = useState(false);
+  const webcamVideoRef = useRef<HTMLVideoElement>(null);
+  const webcamStreamRef = useRef<MediaStream | null>(null);
+  const webcamRequestIdRef = useRef(0);
 
   useEffect(() => {
     const savedLicense = localStorage.getItem("notaryLicenseNumber");
@@ -46,6 +62,20 @@ export function Settings() {
       }
     };
     fetchSettings();
+  }, []);
+
+  const stopWebcamStream = () => {
+    webcamStreamRef.current?.getTracks().forEach((track) => track.stop());
+    webcamStreamRef.current = null;
+
+    if (webcamVideoRef.current) {
+      webcamVideoRef.current.srcObject = null;
+    }
+  };
+
+  useEffect(() => () => {
+    webcamRequestIdRef.current += 1;
+    stopWebcamStream();
   }, []);
 
   const updateFingerprintConfig = <K extends keyof FingerprintConfig>(
@@ -115,6 +145,84 @@ export function Settings() {
     }
   };
 
+  const handleTestWebcam = async () => {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setWebcamStatus(buildWebcamUnsupportedStatus());
+      setIsWebcamPreviewActive(false);
+      return;
+    }
+
+    setIsTestingWebcam(true);
+    setWebcamStatus({
+      stage: "loading",
+      message: "Starting live webcam preview...",
+      details: "Allow camera permission if the browser asks for it.",
+    });
+
+    stopWebcamStream();
+    setIsWebcamPreviewActive(false);
+    const requestId = webcamRequestIdRef.current + 1;
+    webcamRequestIdRef.current = requestId;
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: {
+          facingMode: "user",
+          width: { ideal: 640 },
+          height: { ideal: 360 },
+        },
+      });
+
+      if (requestId !== webcamRequestIdRef.current) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
+
+      webcamStreamRef.current = stream;
+
+      if (webcamVideoRef.current) {
+        webcamVideoRef.current.srcObject = stream;
+        await webcamVideoRef.current.play().catch(() => undefined);
+      }
+
+      setIsWebcamPreviewActive(true);
+      setWebcamStatus(buildWebcamSuccessStatus(stream.getVideoTracks()[0]?.label));
+    } catch (error) {
+      if (requestId !== webcamRequestIdRef.current) {
+        return;
+      }
+
+      stopWebcamStream();
+      setWebcamStatus(buildWebcamErrorStatus(error));
+    } finally {
+      if (requestId === webcamRequestIdRef.current) {
+        setIsTestingWebcam(false);
+      }
+    }
+  };
+
+  const handleStopWebcam = () => {
+    webcamRequestIdRef.current += 1;
+    stopWebcamStream();
+    setIsTestingWebcam(false);
+    setIsWebcamPreviewActive(false);
+    setWebcamStatus({
+      stage: "idle",
+      message: "Preview stopped.",
+      details: "Start the preview again whenever you want to confirm the camera is working.",
+    });
+  };
+
+  const webcamStatusClasses =
+    webcamStatus.stage === "success"
+      ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+      : webcamStatus.stage === "error"
+        ? "border-rose-200 bg-rose-50 text-rose-900"
+        : webcamStatus.stage === "loading"
+          ? "border-amber-200 bg-amber-50 text-amber-900"
+          : "border-outline-variant/15 bg-surface-container-low text-on-surface";
+
   return (
     <Layout>
       <main className="flex-1 overflow-y-auto p-4 md:p-8 lg:p-12">
@@ -134,7 +242,11 @@ export function Settings() {
                 </a>
                 <a href="#configure" className="px-4 py-3 rounded-lg text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface font-body font-medium flex items-center gap-3 transition-colors">
                   <Fingerprint size={20} />
-                  Configure
+                  Fingerprint Scanner
+                </a>
+                <a href="#webcam" className="px-4 py-3 rounded-lg text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface font-body font-medium flex items-center gap-3 transition-colors">
+                  <Camera size={20} />
+                  Test Webcam
                 </a>
               </nav>
             </aside>
@@ -366,6 +478,100 @@ export function Settings() {
                   </div>
 
                   <FingerprintStatusPanel status={fingerprintStatus} />
+                </div>
+              </section>
+
+              <section id="webcam" className="scroll-mt-8">
+                <div className="bg-surface-container-lowest rounded-xl p-6 md:p-8 transition-colors hover:bg-surface-bright editorial-shadow">
+                  <div className="flex flex-col gap-2">
+                    <h3 className="text-2xl font-headline font-bold text-on-surface">Configure Test Webcam</h3>
+                    <p className="text-on-surface-variant font-body text-sm">
+                      Use the small live preview below to confirm the video camera is working on this computer before capturing client photos.
+                    </p>
+                  </div>
+
+                  <div className="mt-8 grid grid-cols-1 xl:grid-cols-[minmax(0,1.15fr)_minmax(18rem,0.85fr)] gap-6">
+                    <div className="rounded-2xl border border-outline-variant/20 bg-surface-container-low p-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-medium text-on-surface">Live camera preview</p>
+                          <p className="mt-1 text-xs text-on-surface-variant">Nothing is stored here. This is only for a quick device check.</p>
+                        </div>
+                        <span className={`rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ${
+                          isWebcamPreviewActive
+                            ? "bg-emerald-100 text-emerald-800"
+                            : "bg-surface-container-high text-on-surface-variant"
+                        }`}>
+                          {isWebcamPreviewActive ? "Camera Live" : "Preview Off"}
+                        </span>
+                      </div>
+
+                      <div className="mt-4 overflow-hidden rounded-2xl border border-outline-variant/15 bg-black">
+                        <div className="relative aspect-video">
+                          <video
+                            ref={webcamVideoRef}
+                            autoPlay
+                            muted
+                            playsInline
+                            className={`h-full w-full object-cover scale-x-[-1] transition-opacity ${isWebcamPreviewActive ? "opacity-100" : "opacity-0"}`}
+                          />
+
+                          {!isWebcamPreviewActive && (
+                            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-center text-slate-200">
+                              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-white/10">
+                                {isTestingWebcam ? <Loader2 size={24} className="animate-spin" /> : <Camera size={24} />}
+                              </div>
+                              <div className="max-w-xs px-4">
+                                <p className="text-sm font-medium">
+                                  {isTestingWebcam ? "Opening camera preview..." : "Preview will appear here"}
+                                </p>
+                                <p className="mt-1 text-xs text-slate-300">
+                                  {isTestingWebcam
+                                    ? "Please allow browser camera permission if prompted."
+                                    : "Start the webcam test to verify the camera feed directly on this page."}
+                                </p>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col gap-4">
+                      <div className={`rounded-2xl border p-4 ${webcamStatusClasses}`}>
+                        <p className="text-sm font-semibold">{webcamStatus.message}</p>
+                        {webcamStatus.details && (
+                          <p className="mt-1 text-xs opacity-80">{webcamStatus.details}</p>
+                        )}
+                      </div>
+
+                      <div className="rounded-2xl border border-outline-variant/15 bg-surface-container-low p-4">
+                        <p className="text-sm font-medium text-on-surface">How to verify</p>
+                        <p className="mt-2 text-xs leading-6 text-on-surface-variant">
+                          Start Preview. If the small live video appears and the status says the camera is working, the webcam is ready for use in this browser.
+                        </p>
+                      </div>
+
+                      <div className="flex flex-wrap gap-3">
+                        <button
+                          onClick={handleTestWebcam}
+                          disabled={isTestingWebcam}
+                          className="px-5 py-3 bg-secondary-container text-on-secondary-container rounded-xl font-body font-medium hover:opacity-90 transition-opacity disabled:opacity-70 disabled:cursor-not-allowed flex items-center gap-2"
+                        >
+                          {isTestingWebcam ? <Loader2 size={16} className="animate-spin" /> : <Camera size={16} />}
+                          {isTestingWebcam ? "Starting..." : isWebcamPreviewActive ? "Restart Preview" : "Start Preview"}
+                        </button>
+
+                        <button
+                          onClick={handleStopWebcam}
+                          disabled={!isWebcamPreviewActive && !isTestingWebcam}
+                          className="px-5 py-3 bg-surface-container-high text-on-surface rounded-xl font-body font-medium hover:bg-surface-container transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                        >
+                          Stop Preview
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </section>
             </div>
