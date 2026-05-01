@@ -2,8 +2,15 @@ import React, { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef,
 import { Layout } from "../components/layout/Layout";
 import { Camera, Fingerprint, Printer, X, RefreshCw, Plus, Gavel, Search, Loader2, UploadCloud, FileText, Eye, Edit3, Mail, Save } from "lucide-react";
 import { PersonEditorModal } from "../components/PersonEditorModal"; // Import the new modal component
+import { FingerprintStatusPanel } from "../components/FingerprintStatusPanel";
 import { collection, addDoc, getDoc, doc, setDoc, query, orderBy, limit, getDocs, where } from "firebase/firestore"; // Keep db for Firestore operations
 import { db } from "../firebaseDb"; // Keep db for Firestore operations
+import {
+  captureFingerprintFromScanner,
+  type FingerprintCaptureStatus,
+} from "../lib/fingerprint/capture";
+import { loadFingerprintConfig } from "../lib/fingerprint/config";
+import type { FingerprintDeviceInfo } from "../lib/fingerprint/types";
 // New interface for a person
 interface Person {
   id: string;
@@ -22,6 +29,15 @@ interface Person {
 interface PreviewPerson extends Person {
   safePhoto?: string;
   safeThumb?: string;
+}
+
+interface FingerprintSessionState {
+  status: FingerprintCaptureStatus;
+  deviceInfo?: FingerprintDeviceInfo;
+  backendAccepted?: boolean;
+  backendMessage?: string;
+  pidXml?: string;
+  serviceUrl?: string;
 }
 
 function getSafeImageUrl(url?: string) {
@@ -349,6 +365,12 @@ export function GiftDeedEditor() {
   const [showPreviewMobile, setShowPreviewMobile] = useState(false);
   const [showPersonEditorModal, setShowPersonEditorModal] = useState(false); // State for person editor modal
   const [currentPersonIndexInModal, setCurrentPersonIndexInModal] = useState(0); // Index of person being edited in modal
+  const [fingerprintSessions, setFingerprintSessions] = useState<Record<string, FingerprintSessionState>>({});
+
+  const isFingerprintBusy = useCallback((personId: string) => {
+    const stage = fingerprintSessions[personId]?.status.stage;
+    return stage === "checking-device" || stage === "waiting-for-finger" || stage === "submitting";
+  }, [fingerprintSessions]);
 
   useEffect(() => {
     if (basePdfFile) {
@@ -381,6 +403,16 @@ export function GiftDeedEditor() {
   }, [setPersons]);
 
   const deletePerson = useCallback((id: string) => {
+    setFingerprintSessions(prev => {
+      if (!(id in prev)) {
+        return prev;
+      }
+
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+
     setPersons(prev => {
       const updatedPersons = prev.filter(p => p.id !== id);
       // Adjust currentPersonIndexInModal if the deleted person was before the current index
@@ -408,83 +440,73 @@ export function GiftDeedEditor() {
   }, [activeCapture, updatePerson]);
 
   const startFingerprintScan = async (personId: string) => {
+    const fingerprintConfig = loadFingerprintConfig();
+
+    setFingerprintSessions((prev) => ({
+      ...prev,
+      [personId]: {
+        ...prev[personId],
+        status: {
+          stage: "checking-device",
+          message: "Checking fingerprint device connection...",
+        },
+      },
+    }));
+
     try {
-      // The Mantra MFS100/110 dynamically binds to ports 8000-8005 based on process availability. 
-      // We first rapidly ping /info across all possible ports AND device paths to instantly locate the active hardware connection!
-      const ports = [8000, 8001, 8002, 8003, 8004, 8005];
-      const devicePaths = ['mfs100', 'mfs110']; // Covers both L0 (100) and L1 (110) drivers!
-      let activeUrl = null;
-
-      for (const port of ports) {
-        if (activeUrl) break;
-        for (const path of devicePaths) {
-          try {
-            const infoRes = await Promise.race([
-              fetch(`http://127.0.0.1:${port}/${path}/info`),
-              new Promise((_, r) => setTimeout(() => r(new Error('timeout')), 150)) // rapid sweep
-            ]) as any;
-            if (infoRes && infoRes.ok) {
-              activeUrl = `http://127.0.0.1:${port}/${path}`;
-              break;
-            }
-          } catch (e) { /* silent sweep */ }
-        }
-      }
-
-      if (!activeUrl) {
-        throw new Error('Mantra Service physically disconnected or not running.');
-      }
-
-      // We found the active hardware port and exact device model! 
-      const payload = { "Quality": 60, "TimeOut": 15 };
-      const response = await fetch(`${activeUrl}/capture`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+      const result = await captureFingerprintFromScanner({
+        config: fingerprintConfig,
+        personId,
+        documentId: fetchQuery.trim() || undefined,
+        onStatus: (status) => {
+          setFingerprintSessions((prev) => ({
+            ...prev,
+            [personId]: {
+              ...prev[personId],
+              status,
+            },
+          }));
+        },
       });
 
-      if (response && response.ok) {
-        const data = await response.json();
-        if (data && data.Base64BMP && data.Base64BMP.length > 100) {
-          const bmpDataUrl = `data:image/bmp;base64,${data.Base64BMP}`;
-          // Convert BMP to low quality JPEG
-          const img = new Image();
-          img.onload = () => {
-            const canvas = document.createElement('canvas');
-            const MAX_DIMENSION = 200; // Low quality thumb image
-            let width = img.width;
-            let height = img.height;
-            if (width > height) {
-              if (width > MAX_DIMENSION) {
-                height *= MAX_DIMENSION / width;
-                width = MAX_DIMENSION;
-              }
-            } else {
-              if (height > MAX_DIMENSION) {
-                width *= MAX_DIMENSION / height;
-                height = MAX_DIMENSION;
-              }
-            }
-            canvas.width = width;
-            canvas.height = height;
-            const ctx = canvas.getContext('2d');
-            if (ctx) {
-              ctx.fillStyle = '#FFFFFF';
-              ctx.fillRect(0, 0, width, height);
-              ctx.drawImage(img, 0, 0, width, height);
-              const jpegDataUrl = canvas.toDataURL('image/jpeg', 0.1);
-              updatePerson(personId, 'thumb', jpegDataUrl);
-            }
-          };
-          img.src = bmpDataUrl;
-          return;
-        }
+      if (result.thumbImageDataUrl) {
+        updatePerson(personId, 'thumb', result.thumbImageDataUrl);
       }
-      throw new Error('Optical Capture Failed or User pulled finger away.');
-    } catch (e) {
-      // Fallback: If no scanner is detected or the user took too long, fallback cleanly to WebCam
-      console.warn('Mantra scanner fallback triggered:', e);
-      setActiveCapture({ personId, type: 'thumb' });
+
+      setFingerprintSessions((prev) => ({
+        ...prev,
+        [personId]: {
+          ...prev[personId],
+          status: {
+            stage: "success",
+            message: result.thumbImageDataUrl
+              ? "Fingerprint captured and added to the document."
+              : "Fingerprint captured, but the scanner did not return a printable thumb preview.",
+            details: result.backendMessage,
+          },
+          deviceInfo: result.deviceInfo,
+          backendAccepted: result.backendAccepted,
+          backendMessage: result.backendMessage,
+          pidXml: result.pidXml,
+          serviceUrl: result.serviceUrl,
+        },
+      }));
+    } catch (error) {
+      console.error('Mantra scanner capture failed:', error);
+      setFingerprintSessions((prev) => ({
+        ...prev,
+        [personId]: {
+          ...prev[personId],
+          status: {
+            stage: "error",
+            message: "Fingerprint capture failed.",
+            details:
+              error instanceof Error
+                ? error.message
+                : "The scanner did not return a valid fingerprint response.",
+          },
+        },
+      }));
     }
   };
 
@@ -1313,7 +1335,6 @@ Contact Details : Mob. 8286000888 / 9933806888 | Email - advsameervispute@gmail.
       {showPersonEditorModal && persons.length > 0 && (
         <PersonEditorModal
           isOpen={showPersonEditorModal}
-          key={persons[currentPersonIndexInModal].id + persons[currentPersonIndexInModal].photo + persons[currentPersonIndexInModal].thumb} // Force re-mount on biometric change to ensure UI updates
           onClose={() => setShowPersonEditorModal(false)}
           person={persons[currentPersonIndexInModal]}
           onUpdatePerson={updatePerson}
@@ -1327,6 +1348,11 @@ Contact Details : Mob. 8286000888 / 9933806888 | Email - advsameervispute@gmail.
           }}
           onStartCapture={(personId, type) => setActiveCapture({ personId, type })}
           onStartFingerprintScan={startFingerprintScan}
+          fingerprintBusy={isFingerprintBusy(persons[currentPersonIndexInModal].id)}
+          fingerprintStatus={fingerprintSessions[persons[currentPersonIndexInModal].id]?.status}
+          fingerprintDeviceInfo={fingerprintSessions[persons[currentPersonIndexInModal].id]?.deviceInfo}
+          fingerprintBackendAccepted={fingerprintSessions[persons[currentPersonIndexInModal].id]?.backendAccepted}
+          fingerprintBackendMessage={fingerprintSessions[persons[currentPersonIndexInModal].id]?.backendMessage}
           onHandleFileUpload={handleFileUpload}
           knownClients={knownClients}
           onAutofillPerson={autofillPerson}
@@ -1639,12 +1665,20 @@ Contact Details : Mob. 8286000888 / 9933806888 | Email - advsameervispute@gmail.
                       </div>
                       <div className="w-[1px] h-6 bg-outline-variant/30 hidden md:block"></div>
                       <div className="flex gap-2 items-center">
-                        <button onClick={() => startFingerprintScan(person.id)} className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 text-primary rounded hover:bg-primary/20 transition-colors font-medium text-xs">
-                          <Fingerprint size={14} /> {person.thumb ? 'Rescan Thumbprint' : 'Scan Thumbprint'}
+                        <button disabled={isFingerprintBusy(person.id)} onClick={() => startFingerprintScan(person.id)} className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 text-primary rounded hover:bg-primary/20 transition-colors font-medium text-xs disabled:cursor-not-allowed disabled:opacity-60">
+                          {isFingerprintBusy(person.id) ? <Loader2 size={14} className="animate-spin" /> : <Fingerprint size={14} />} {person.thumb ? 'Rescan Thumbprint' : 'Scan Thumbprint'}
                         </button>
                         <label className="flex items-center gap-1.5 px-3 py-1.5 bg-surface-container-high text-on-surface-variant rounded hover:bg-surface-container-highest transition-colors cursor-pointer font-medium text-xs shadow-sm">
                           Upload Thumb <input type="file" hidden accept="image/*" onChange={(e) => handleFileUpload(person.id, 'thumb', e)} />
                         </label>
+                      </div>
+                      <div className="basis-full">
+                        <FingerprintStatusPanel
+                          status={fingerprintSessions[person.id]?.status}
+                          deviceInfo={fingerprintSessions[person.id]?.deviceInfo}
+                          backendAccepted={fingerprintSessions[person.id]?.backendAccepted}
+                          backendMessage={fingerprintSessions[person.id]?.backendMessage}
+                        />
                       </div>
                     </div>
                   </div>

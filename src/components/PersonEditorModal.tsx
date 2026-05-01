@@ -1,5 +1,8 @@
 import React, { useState, useMemo } from "react";
 import { X, Camera, Fingerprint, Plus, ChevronLeft, ChevronRight, Trash2, Save } from "lucide-react";
+import { FingerprintStatusPanel } from "./FingerprintStatusPanel";
+import type { FingerprintCaptureStatus } from "../lib/fingerprint/capture";
+import type { FingerprintDeviceInfo } from "../lib/fingerprint/types";
 
 // Re-use interfaces and utility functions from GiftDeedEditor.tsx
 interface Person {
@@ -58,6 +61,11 @@ interface PersonEditorModalProps {
   onNavigate: (direction: 'prev' | 'next') => void;
   onStartCapture: (personId: string, type: 'photo' | 'thumb') => void; // To trigger parent's webcam
   onStartFingerprintScan: (personId: string) => void;
+  fingerprintBusy?: boolean;
+  fingerprintStatus?: FingerprintCaptureStatus | null;
+  fingerprintDeviceInfo?: FingerprintDeviceInfo;
+  fingerprintBackendAccepted?: boolean;
+  fingerprintBackendMessage?: string;
   onHandleFileUpload: (personId: string, type: 'photo' | 'thumb', e: React.ChangeEvent<HTMLInputElement>) => void;
   knownClients: Person[]; // For autofill
   onAutofillPerson: (personId: string, clientData: Person) => void; // For autofill
@@ -75,6 +83,11 @@ export function PersonEditorModal({
   onNavigate,
   onStartCapture,
   onStartFingerprintScan,
+  fingerprintBusy,
+  fingerprintStatus,
+  fingerprintDeviceInfo,
+  fingerprintBackendAccepted,
+  fingerprintBackendMessage,
   onHandleFileUpload,
   knownClients,
   onAutofillPerson,
@@ -268,7 +281,7 @@ export function PersonEditorModal({
                     {!person.thumb && <span className="text-on-surface-variant text-xs text-center p-2">No Thumb Scanned</span>}
                   </div>
                   <div className="flex items-center gap-2">
-                    <button onClick={() => onStartFingerprintScan(person.id)} className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 text-primary rounded hover:bg-primary/20 transition-colors font-medium text-xs">
+                    <button disabled={fingerprintBusy} onClick={() => onStartFingerprintScan(person.id)} className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 text-primary rounded hover:bg-primary/20 transition-colors font-medium text-xs disabled:cursor-not-allowed disabled:opacity-60">
                       <Fingerprint size={14} /> {person.thumb ? 'Rescan Thumb' : 'Scan Thumb'}
                     </button>
                     <label className="flex items-center gap-1.5 px-3 py-1.5 bg-surface-container-high text-on-surface-variant rounded hover:bg-surface-container-highest transition-colors cursor-pointer font-medium text-xs shadow-sm">
@@ -278,6 +291,12 @@ export function PersonEditorModal({
                   </div>
                 </div>
               </div>
+              <FingerprintStatusPanel
+                status={fingerprintStatus}
+                deviceInfo={fingerprintDeviceInfo}
+                backendAccepted={fingerprintBackendAccepted}
+                backendMessage={fingerprintBackendMessage}
+              />
             </div>
           </div>
         </div>
