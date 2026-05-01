@@ -11,6 +11,10 @@ import {
 } from "../lib/fingerprint/capture";
 import { loadFingerprintConfig } from "../lib/fingerprint/config";
 import type { FingerprintDeviceInfo } from "../lib/fingerprint/types";
+import {
+  persistPersonMedia,
+  type PersonMediaUploadRequest,
+} from "../lib/personMedia";
 // New interface for a person
 interface Person {
   id: string;
@@ -552,6 +556,41 @@ export function GiftDeedEditor() {
     if (e.target) e.target.value = '';
   }, []); // `updatePerson` is a stable useCallback, so it doesn't need to be a dependency here.
 
+  const uploadPersonMediaAsset = useCallback(
+    async ({ dataUrl, folder, publicId }: PersonMediaUploadRequest) => {
+      const formData = new FormData();
+      formData.append("file", dataUrl);
+      formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
+      formData.append("folder", folder);
+      formData.append("public_id", publicId);
+
+      const cloudinaryResponse = await fetch(
+        `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/upload`,
+        {
+          method: "POST",
+          body: formData,
+        },
+      );
+
+      if (!cloudinaryResponse.ok) {
+        const errorText = await cloudinaryResponse.text().catch(() => "");
+        throw new Error(
+          errorText
+            ? `Cloudinary image upload failed: ${errorText}`
+            : "Cloudinary image upload failed.",
+        );
+      }
+
+      const cloudinaryData = await cloudinaryResponse.json();
+      if (typeof cloudinaryData?.secure_url !== "string" || !cloudinaryData.secure_url) {
+        throw new Error("Cloudinary image upload did not return a secure URL.");
+      }
+
+      return cloudinaryData.secure_url as string;
+    },
+    [],
+  );
+
   const [fetchQuery, setFetchQuery] = useState("");
   const [isFetching, setIsFetching] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -878,16 +917,24 @@ export function GiftDeedEditor() {
   const handleSaveToFirebase = async (overridePdfUrl?: string, silent: boolean = false) => {
     if (!silent) setIsSaving(true);
     try {
-      // Deep clone persons and strip out any 'undefined' values (Firestore rejects undefined)
-      // Also, if photo/thumb are base64, they are not to be saved to cloud, so clear them.
-      // If they are already URLs (from a previous fetch), keep them.
-      const personsToSave = persons.map(p => {
+      const mediaDocumentId =
+        fetchQuery.trim() || `${kNo || "register"}-${pageNo || "page"}-${srNo || "serial"}`;
+      const persistedPersons = await persistPersonMedia(
+        persons,
+        uploadPersonMediaAsset,
+        { documentId: mediaDocumentId },
+      );
+
+      setPersons(persistedPersons);
+
+      // Deep clone persons and strip out any 'undefined' values (Firestore rejects undefined).
+      const personsToSave = persistedPersons.map((p) => {
         const newP: any = { ...p };
         if (newP.photo && String(newP.photo).startsWith('data:image')) {
-          newP.photo = null; // Do not save base64 to Firestore, and not uploading to Cloudinary
+          throw new Error(`Photo for ${newP.name || newP.id} was not uploaded to Cloudinary.`);
         }
         if (newP.thumb && String(newP.thumb).startsWith('data:image')) {
-          newP.thumb = null; // Do not save base64 to Firestore, and not uploading to Cloudinary
+          throw new Error(`Thumb impression for ${newP.name || newP.id} was not uploaded to Cloudinary.`);
         }
         if (newP.photo === undefined) delete newP.photo; // Ensure undefined fields are removed for Firestore
         if (newP.thumb === undefined) delete newP.thumb; // Ensure undefined fields are removed for Firestore
