@@ -39,15 +39,24 @@ export function buildFingerprintConfig(overrides: Partial<FingerprintConfig> = {
 }
 
 export function getRdServiceCandidates(config: FingerprintConfig): string[] {
+  const ports = [11100, 11101, 11102, 11103, 11104, 11105];
+  const secure127 = ports.map((p) => `https://127.0.0.1:${p}`);
+  const secureLocalhost = ports.map((p) => `https://localhost:${p}`);
+  const insecure127 = ports.map((p) => `http://127.0.0.1:${p}`);
+  const insecureLocalhost = ports.map((p) => `http://localhost:${p}`);
+
+  const secure = [...secure127, ...secureLocalhost];
+  const insecure = [...insecure127, ...insecureLocalhost];
+
   if (config.transport === "https") {
-    return [config.rdSecureBaseUrl];
+    return secure;
   }
 
   if (config.transport === "http") {
-    return [config.rdBaseUrl];
+    return insecure;
   }
 
-  return [config.rdSecureBaseUrl, config.rdBaseUrl];
+  return [...secure, ...insecure];
 }
 
 export function getLegacyPreviewCandidates(config: FingerprintConfig): string[] {

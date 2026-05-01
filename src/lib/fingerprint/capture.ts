@@ -195,6 +195,22 @@ export async function discoverRdService(config: FingerprintConfig): Promise<Disc
   for (const candidate of candidates) {
     try {
       const infoText = await tryDeviceInfo(candidate, config);
+
+      // Verify that the capture endpoint does not immediately fail due to CORS.
+      // Mantra MFS100 on some ports incorrectly returns Access-Control-Allow-Origin: https://127.0.0.1,
+      // which causes a CORS preflight failure for the actual capture request later.
+      try {
+        await fetchWithTimeout(
+          `${candidate}${config.rdCapturePath}`,
+          { method: "OPTIONS" },
+          1500,
+        );
+      } catch (optionsError) {
+        throw new Error(
+          `Device found on ${candidate} but CORS policy blocked capture. Trying next port...`,
+        );
+      }
+
       return {
         baseUrl: candidate,
         infoText,
