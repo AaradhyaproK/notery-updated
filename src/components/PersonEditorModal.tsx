@@ -19,6 +19,13 @@ interface Person {
   role?: string;
 }
 
+const ROLE_OPTIONS = [
+  "Donor", "Donee", "Purchaser", "Seller", "Mortgagor", "Mortgagee", 
+  "Deponent", "Affiant", "Executor/Principal", "Constituted Attorney Holder", 
+  "Leasor", "Leasee", "Executor", "Indemnifier", "Declarant", 
+  "Confirming Party", "Licensor", "Licensee"
+];
+
 const PAN_REGEX = /^[A-Z]{5}[0-9]{4}[A-Z]$/;
 const AADHAR_REGEX = /^\d{4}\s\d{4}\s\d{4}$/;
 
@@ -171,8 +178,34 @@ export function PersonEditorModal({
             </div>
 
             <div className="md:col-span-2">
-              <label className="block text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">Role (Donor, Donee, Licensor, etc)</label>
-              <input type="text" value={person.role || ''} onChange={(e) => onUpdatePerson(person.id, 'role', e.target.value)} className="w-full p-2.5 border border-outline-variant/40 rounded-lg bg-surface outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all font-medium text-sm" placeholder="e.g. Donor" />
+              <label className="block text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">Role</label>
+              <select
+                value={ROLE_OPTIONS.includes(person.role || '') ? person.role : (person.role ? "__other__" : "")}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val === "__other__") {
+                    onUpdatePerson(person.id, 'role', ""); // Clear to let them type
+                  } else {
+                    onUpdatePerson(person.id, 'role', val);
+                  }
+                }}
+                className="w-full p-2.5 border border-outline-variant/40 rounded-lg bg-surface outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all font-medium text-sm"
+              >
+                <option value="">Select Role</option>
+                {ROLE_OPTIONS.map(role => (
+                  <option key={role} value={role}>{role}</option>
+                ))}
+                <option value="__other__">Other (Editable)</option>
+              </select>
+              {(person.role === "" || !ROLE_OPTIONS.includes(person.role || '')) && person.role !== undefined && (
+                <input
+                  type="text"
+                  value={person.role || ''}
+                  onChange={(e) => onUpdatePerson(person.id, 'role', e.target.value)}
+                  className="mt-2 w-full p-2.5 border border-outline-variant/40 rounded-lg bg-surface outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all font-medium text-sm"
+                  placeholder="Enter custom role..."
+                />
+              )}
             </div>
 
             <div>

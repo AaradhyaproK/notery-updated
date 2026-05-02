@@ -103,7 +103,14 @@ const DOC_NAME_OPTIONS = [
   "Friendly Loan Agreement",
   "Mortgage Deed",
   "Power of Attorney",
+  "Will",
 ] as const;
+const ROLE_OPTIONS = [
+  "Donor", "Donee", "Purchaser", "Seller", "Mortgagor", "Mortgagee", 
+  "Deponent", "Affiant", "Executor/Principal", "Constituted Attorney Holder", 
+  "Leasor", "Leasee", "Executor", "Indemnifier", "Declarant", 
+  "Confirming Party", "Licensor", "Licensee"
+];
 const OTHER_DOC_NAME_OPTION = "__other__";
 
 function normalizePanInput(value: string) {
@@ -1616,53 +1623,69 @@ Contact Details : Mob. 8286000888 / 9933806888 | Email - advsameervispute@gmail.
                       <input type="text" value={person.age} onChange={(e) => updatePerson(person.id, 'age', e.target.value)} className="w-full p-2.5 border border-outline-variant/40 rounded-lg bg-surface outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all font-medium text-sm" placeholder="Age" />
                     </div>
                     <div className="2xl:col-span-6">
-                      <label className="block text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">Role (Donor, Donee, Licensor, etc)</label>
-                      <input type="text" value={person.role || ''} onChange={(e) => updatePerson(person.id, 'role', e.target.value)} className="w-full p-2.5 border border-outline-variant/40 rounded-lg bg-surface outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all font-medium text-sm" placeholder="e.g. Donor" />
+                      <label className="block text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">Role</label>
+                      <select
+                        value={ROLE_OPTIONS.includes(person.role || '') ? person.role : (person.role ? "__other__" : "")}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          if (val === "__other__") {
+                            updatePerson(person.id, 'role', ""); // Clear to let them type
+                          } else {
+                            updatePerson(person.id, 'role', val);
+                          }
+                        }}
+                        className="w-full p-2.5 border border-outline-variant/40 rounded-lg bg-surface outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all font-medium text-sm"
+                      >
+                        <option value="">Select Role</option>
+                        {ROLE_OPTIONS.map(role => (
+                          <option key={role} value={role}>{role}</option>
+                        ))}
+                        <option value="__other__">Other (Editable)</option>
+                      </select>
+                      {(person.role === "" || !ROLE_OPTIONS.includes(person.role || '')) && person.role !== undefined && (
+                        <input
+                          type="text"
+                          value={person.role || ''}
+                          onChange={(e) => updatePerson(person.id, 'role', e.target.value)}
+                          className="mt-2 w-full p-2.5 border border-outline-variant/40 rounded-lg bg-surface outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all font-medium text-sm"
+                          placeholder="Enter custom role..."
+                        />
+                      )}
                     </div>
-                    <div className="2xl:col-span-3">
+                    <div className="2xl:col-span-6">
                       <label className="block text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">Aadhar Card *</label>
-                      {(() => {
-                        const aadharError = getAadharValidationMessage(person.aadhar);
-                        return (
-                          <input
-                            type="text"
-                            value={person.aadhar}
-                            onChange={(e) => updatePerson(person.id, 'aadhar', normalizeAadharInput(e.target.value))}
-                            className={`w-full p-2.5 border rounded-lg bg-surface outline-none transition-all font-medium text-sm ${
-                              aadharError
-                                ? 'border-error text-error focus:ring-2 focus:ring-error/20 focus:border-error'
-                                : 'border-outline-variant/40 focus:ring-2 focus:ring-primary/20 focus:border-primary/50'
-                            }`}
-                            placeholder="1234 5678 9012"
-                            maxLength={14}
-                          />
-                        );
-                      })()}
+                      <input
+                        type="text"
+                        value={person.aadhar}
+                        onChange={(e) => updatePerson(person.id, 'aadhar', normalizeAadharInput(e.target.value))}
+                        className={`w-full p-2.5 border rounded-lg bg-surface outline-none transition-all font-medium text-sm ${
+                          getAadharValidationMessage(person.aadhar)
+                            ? 'border-error text-error focus:ring-2 focus:ring-error/20 focus:border-error'
+                            : 'border-outline-variant/40 focus:ring-2 focus:ring-primary/20 focus:border-primary/50'
+                        }`}
+                        placeholder="1234 5678 9012"
+                        maxLength={14}
+                      />
                       {getAadharValidationMessage(person.aadhar) && (
                         <p className="mt-1 text-[11px] font-medium text-error">
                           {getAadharValidationMessage(person.aadhar)}
                         </p>
                       )}
                     </div>
-                    <div className="2xl:col-span-3">
+                    <div className="2xl:col-span-6">
                       <label className="block text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">PAN Card *</label>
-                      {(() => {
-                        const panError = getPanValidationMessage(person.pan);
-                        return (
                       <input
                         type="text"
                         value={person.pan || ''}
                         onChange={(e) => updatePerson(person.id, 'pan', normalizePanInput(e.target.value))}
                         className={`w-full p-2.5 border rounded-lg bg-surface outline-none transition-all font-medium text-sm uppercase ${
-                          panError
+                          getPanValidationMessage(person.pan)
                             ? 'border-error text-error focus:ring-2 focus:ring-error/20 focus:border-error'
                             : 'border-outline-variant/40 focus:ring-2 focus:ring-primary/20 focus:border-primary/50'
                         }`}
                         placeholder="ABCDE1234F"
                         maxLength={10}
                       />
-                        );
-                      })()}
                       {getPanValidationMessage(person.pan) && (
                         <p className="mt-1 text-[11px] font-medium text-error">
                           {getPanValidationMessage(person.pan)}
