@@ -309,11 +309,10 @@ export function Documents() {
                             onClick={(e) => {
                               e.stopPropagation();
                               const subject = encodeURIComponent(`Notarized Document - ${doc.clientName}`);
-                              const bodyText = `Please find attached the notarized copy of Document duly certified in accordance with the applicable legal requirements.
+                              const bodyText = `Please find attached the scanned copy of Document for your future reference presented for Notary duly executed before me 
 
-The document has been completed and notarized to ensure its authenticity and validity for your intended purpose. Kindly review the attached copy and confirm receipt.
-
-Document Link: ${doc.pdfUrl}
+Document Link:
+${doc.pdfUrl}
 
 Thank you.
 
@@ -322,6 +321,7 @@ Sincerely,
 Sameer Shrikant Vispute
 BLS., LLB., DIPL
 Advocate High Court
+Notary (Govt. of India)
 
 Contact Details : Mob. 8286000888 / 9933806888 | Email - advsameervispute@gmail.com`;
                               const body = encodeURIComponent(bodyText);
