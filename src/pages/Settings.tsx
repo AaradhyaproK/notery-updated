@@ -131,7 +131,7 @@ export function Settings() {
     setFingerprintStatus({
       stage: "success",
       message: "Fingerprint scanner settings reset to defaults.",
-      details: "The default profile is configured for Mantra MFS110 with localhost RD service.",
+      details: "The default profile is configured for Mantra MFS500 with MorFin Web SDK.",
     });
   };
 
@@ -371,7 +371,7 @@ export function Settings() {
                   <div className="mt-6 rounded-xl border border-outline-variant/20 bg-surface-container-low p-4 text-sm text-on-surface-variant">
                     <p className="font-medium text-on-surface">Recommended setup</p>
                     <p className="mt-1">
-                      Mantra `MFS110` + running `MantraRDService` on localhost. If the app is opened over HTTPS, keep the official Mantra browser bridge/extension enabled or allow secure localhost access on that client machine.
+                      Mantra `MFS500` + running `MorFinAuthClientService` on localhost:8030. If the app is opened over HTTPS, make sure to visit `https://localhost:8030/morfinauth/connecteddevicelist` in a separate tab to accept the self-signed certificate once.
                     </p>
                   </div>
 
@@ -381,7 +381,7 @@ export function Settings() {
                       <input
                         className="w-full bg-surface-container-high border-transparent rounded-md font-body text-on-surface px-4 py-3 opacity-80 cursor-not-allowed"
                         type="text"
-                        value="Mantra MFS110"
+                        value="Mantra MFS500 (MorFin Web SDK)"
                         readOnly
                       />
                     </div>
@@ -400,22 +400,22 @@ export function Settings() {
                     </div>
 
                     <div className="flex flex-col gap-2">
-                      <label className="font-label text-sm font-medium text-on-surface-variant">RD Secure URL</label>
+                      <label className="font-label text-sm font-medium text-on-surface-variant">SDK Secure URL</label>
                       <input
                         className="w-full bg-surface-container-highest border-transparent focus:border-primary/30 focus:bg-surface-container-lowest rounded-md font-body text-on-surface font-mono px-4 py-3 transition-all"
                         type="text"
-                        value={fingerprintConfig.rdSecureBaseUrl}
-                        onChange={(e) => updateFingerprintConfig("rdSecureBaseUrl", e.target.value)}
+                        value="https://localhost:8030/morfinauth/"
+                        readOnly
                       />
                     </div>
 
                     <div className="flex flex-col gap-2">
-                      <label className="font-label text-sm font-medium text-on-surface-variant">RD HTTP URL</label>
+                      <label className="font-label text-sm font-medium text-on-surface-variant">SDK HTTP URL</label>
                       <input
                         className="w-full bg-surface-container-highest border-transparent focus:border-primary/30 focus:bg-surface-container-lowest rounded-md font-body text-on-surface font-mono px-4 py-3 transition-all"
                         type="text"
-                        value={fingerprintConfig.rdBaseUrl}
-                        onChange={(e) => updateFingerprintConfig("rdBaseUrl", e.target.value)}
+                        value="http://localhost:8030/morfinauth/"
+                        readOnly
                       />
                     </div>
 
@@ -434,10 +434,10 @@ export function Settings() {
                     <div className="flex flex-col gap-2">
                       <label className="font-label text-sm font-medium text-on-surface-variant">Backend Endpoint</label>
                       <input
-                        className="w-full bg-surface-container-highest border-transparent focus:border-primary/30 focus:bg-surface-container-lowest rounded-md font-body text-on-surface font-mono px-4 py-3 transition-all"
+                        className="w-full bg-surface-container-high border-transparent rounded-md font-body text-on-surface px-4 py-3 opacity-80 cursor-not-allowed"
                         type="text"
-                        value={fingerprintConfig.backendEndpoint}
-                        onChange={(e) => updateFingerprintConfig("backendEndpoint", e.target.value)}
+                        value="N/A (Captured Locally)"
+                        readOnly
                       />
                     </div>
                   </div>
