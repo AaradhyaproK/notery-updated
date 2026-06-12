@@ -948,13 +948,13 @@ export function GiftDeedEditor() {
         return newP;
       });
 
-      // Ensure unique combination of kNo and pageNo
-      if (kNo && pageNo) {
+      // Ensure unique combination of kNo and srNo
+      if (kNo && srNo) {
         const q = query(collection(db, "documents"), where("kNo", "==", kNo));
         const qs = await getDocs(q);
-        const isDuplicate = qs.docs.some(docSnap => docSnap.id !== fetchQuery.trim() && docSnap.data().pageNo === pageNo);
+        const isDuplicate = qs.docs.some(docSnap => docSnap.id !== fetchQuery.trim() && docSnap.data().srNo === srNo);
         if (isDuplicate) {
-          throw new Error("Register No. & Reg.Page Number. already exists, update Reg.Page Number.");
+          throw new Error("Register No. & Sr No. already exists, update Sr No.");
         }
       }
 
@@ -1023,12 +1023,12 @@ export function GiftDeedEditor() {
     }
 
     // Duplicate check
-    if (kNo && pageNo) {
+    if (kNo && srNo) {
       const q = query(collection(db, "documents"), where("kNo", "==", kNo));
       const qs = await getDocs(q);
-      const isDuplicate = qs.docs.some(docSnap => docSnap.id !== fetchQuery.trim() && docSnap.data().pageNo === pageNo);
+      const isDuplicate = qs.docs.some(docSnap => docSnap.id !== fetchQuery.trim() && docSnap.data().srNo === srNo);
       if (isDuplicate) {
-        alert("Register No. & Reg.Page Number. already exists, update Reg.Page Number.");
+        alert("Register No. & Sr No. already exists, update Sr No.");
         return;
       }
     }
@@ -1245,12 +1245,12 @@ export function GiftDeedEditor() {
     if (!validatePersons()) return;
 
     // Async Duplicate Check before proceeding to PDF generation
-    if (kNo && pageNo) {
+    if (kNo && srNo) {
       const q = query(collection(db, "documents"), where("kNo", "==", kNo));
       const qs = await getDocs(q);
-      const isDuplicate = qs.docs.some(docSnap => docSnap.id !== fetchQuery.trim() && docSnap.data().pageNo === pageNo);
+      const isDuplicate = qs.docs.some(docSnap => docSnap.id !== fetchQuery.trim() && docSnap.data().srNo === srNo);
       if (isDuplicate) {
-        alert("Register No. & Reg.Page Number. already exists, update Reg.Page Number.");
+        alert("Register No. & Sr No. already exists, update Sr No.");
         return;
       }
     }
